@@ -216,3 +216,16 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Node and WXT
+node_modules/
+.pnpm-store/
+.wxt/
+.output/
+coverage/
+*.zip
+.DS_Store
+
+# Application source (overrides the generic Python lib/ rule above)
+!lib/
+!lib/**
