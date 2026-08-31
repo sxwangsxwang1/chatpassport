@@ -1,6 +1,7 @@
 import { browser } from "wxt/browser";
 import { detectProvider } from "./core";
 import { extractConversationFromPage, fillComposerOnPage, type FillResult } from "./adapters/page";
+import { getActiveInvocation, resolveInvokedUrl } from "./invocation";
 import { passportSchema, type Passport, type Provider } from "./passport";
 
 export interface ActiveTabContext {
@@ -10,9 +11,12 @@ export interface ActiveTabContext {
 }
 
 export async function getActiveTabContext(): Promise<ActiveTabContext> {
-  const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+  const [[tab], invocation] = await Promise.all([
+    browser.tabs.query({ active: true, currentWindow: true }),
+    getActiveInvocation(),
+  ]);
   if (!tab?.id) throw new Error("No active browser tab is available.");
-  const url = tab.url ?? "";
+  const url = resolveInvokedUrl(tab.id, tab.url, invocation);
   return { id: tab.id, url, provider: url ? detectProvider(url) : null };
 }
 
