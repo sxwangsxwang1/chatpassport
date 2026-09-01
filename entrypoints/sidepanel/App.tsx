@@ -88,15 +88,12 @@ export default function App() {
     void refreshContext();
     const onTabChanged = () => void refreshContext();
     const onWindowFocus = () => void refreshContext();
-    const onStorageChanged = () => void refreshContext();
     browser.tabs.onActivated.addListener(onTabChanged);
     browser.tabs.onUpdated.addListener(onTabChanged);
-    browser.storage.onChanged.addListener(onStorageChanged);
     window.addEventListener("focus", onWindowFocus);
     return () => {
       browser.tabs.onActivated.removeListener(onTabChanged);
       browser.tabs.onUpdated.removeListener(onTabChanged);
-      browser.storage.onChanged.removeListener(onStorageChanged);
       window.removeEventListener("focus", onWindowFocus);
     };
   }, []);

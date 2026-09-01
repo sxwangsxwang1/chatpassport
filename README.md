@@ -68,13 +68,14 @@ file or transferred using only their latest messages.
 
 ## Permissions
 
-- `activeTab`: temporarily access the tab where you invoke ChatPassport.
+- Scoped site access: read and fill conversations only on the official
+  ChatGPT, Claude, Gemini, and DeepSeek web apps.
 - `scripting`: read the visible conversation or fill the destination editor.
 - `storage`: hold one temporary transfer inside the current browser session.
 - `sidePanel`: display the ChatPassport interface.
 
-The extension does not request `<all_urls>`, download-management, browsing
-history, or permanent filesystem access.
+The extension does not request `<all_urls>`, access to unrelated websites,
+download-management, browsing history, or permanent filesystem access.
 
 ## Development
 
