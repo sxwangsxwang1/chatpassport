@@ -54,6 +54,7 @@ export async function fillActiveComposer(text: string): Promise<FillResult> {
   });
   return injection?.result ?? {
     success: false,
+    code: "not-found",
     message: "The page did not accept the conversation context.",
   };
 }

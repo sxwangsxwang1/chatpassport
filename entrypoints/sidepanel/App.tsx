@@ -88,12 +88,15 @@ export default function App() {
     void refreshContext();
     const onTabChanged = () => void refreshContext();
     const onWindowFocus = () => void refreshContext();
+    const onStorageChanged = () => void refreshContext();
     browser.tabs.onActivated.addListener(onTabChanged);
     browser.tabs.onUpdated.addListener(onTabChanged);
+    browser.storage.onChanged.addListener(onStorageChanged);
     window.addEventListener("focus", onWindowFocus);
     return () => {
       browser.tabs.onActivated.removeListener(onTabChanged);
       browser.tabs.onUpdated.removeListener(onTabChanged);
+      browser.storage.onChanged.removeListener(onStorageChanged);
       window.removeEventListener("focus", onWindowFocus);
     };
   }, []);
@@ -126,7 +129,7 @@ export default function App() {
       await savePendingTransfer(transferablePassport, target);
       const stored = await getPendingTransfer();
       setPending(stored);
-      showNotice(`Ready for ${PROVIDER_LABELS[target]}. Open it, then click ChatPassport again.`, "success");
+      showNotice(`Opening ${PROVIDER_LABELS[target]}. ChatPassport will fill its empty message box automatically.`, "success");
       await browser.tabs.create({ url: PROVIDER_URLS[target] });
     } catch (error) {
       showNotice(errorMessage(error), "error");
@@ -140,6 +143,10 @@ export default function App() {
     setBusy(true);
     try {
       const result = await fillActiveComposer(context);
+      if (result.success && pending) {
+        await clearPendingTransfer();
+        setPending(null);
+      }
       showNotice(result.message, result.success ? "success" : "error");
     } catch (error) {
       showNotice(errorMessage(error), "error");
@@ -207,10 +214,11 @@ export default function App() {
           <p>
             {pending.passport.messages.length} messages · {formatBytes(passportSize(pending.passport))}
             <br />Destination: {PROVIDER_LABELS[pending.target]}
+            <br />The destination will fill automatically when its message box is ready.
           </p>
-          {activeProvider && (
+          {activeProvider === pending.target && (
             <button className="primary" onClick={fillComposer} disabled={busy}>
-              Fill {PROVIDER_LABELS[activeProvider]} message box
+              Retry filling {PROVIDER_LABELS[activeProvider]}
             </button>
           )}
           <div className="button-row">
@@ -309,9 +317,11 @@ export default function App() {
             <option value="20">Latest 20 messages</option>
           </select>
           <button className="primary" onClick={prepareTransfer} disabled={busy || transferableSize > SESSION_MAX_BYTES}>
-            Prepare transfer to {PROVIDER_LABELS[target]}
+            Import into {PROVIDER_LABELS[target]}
           </button>
-          <p className="privacy-note">Stored temporarily in this browser for one hour. Never sent automatically.</p>
+          <p className="privacy-note">
+            Opens the destination and fills an empty message box. You review and send it yourself.
+          </p>
         </section>
       )}
 

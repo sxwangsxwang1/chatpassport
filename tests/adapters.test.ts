@@ -1,11 +1,26 @@
 import { JSDOM } from "jsdom";
 import { describe, expect, it } from "vitest";
-import { extractConversationFromPage, type PageExtraction } from "../lib/adapters/page";
+import {
+  extractConversationFromPage,
+  fillComposerOnPage,
+  type FillResult,
+  type PageExtraction,
+} from "../lib/adapters/page";
 
 function extract(html: string, url: string, title: string): PageExtraction {
   const dom = new JSDOM(html, { url, runScripts: "outside-only" });
   dom.window.document.title = title;
   return dom.window.eval(`(${extractConversationFromPage.toString()})()`) as PageExtraction;
+}
+
+function fill(html: string, text: string): { result: FillResult; value: string } {
+  const dom = new JSDOM(html, { url: "https://chat.deepseek.com/", runScripts: "outside-only" });
+  const composer = dom.window.document.querySelector<HTMLElement>("textarea, [contenteditable='true']");
+  if (!composer) throw new Error("Fixture must contain a composer.");
+  composer.getClientRects = () => ({ length: 1 }) as DOMRectList;
+  const result = dom.window.eval(`(${fillComposerOnPage.toString()})(${JSON.stringify(text)})`) as FillResult;
+  const value = composer instanceof dom.window.HTMLTextAreaElement ? composer.value : composer.textContent ?? "";
+  return { result, value };
 }
 
 describe("page adapters", () => {
@@ -57,5 +72,17 @@ describe("page adapters", () => {
     const result = extract("<p>Hello</p>", "https://example.com/", "Example");
     expect(result.provider).toBeNull();
     expect(result.error).toContain("not a supported");
+  });
+
+  it("fills an empty destination composer", () => {
+    const { result, value } = fill('<textarea placeholder="Send a message"></textarea>', "Imported context");
+    expect(result).toMatchObject({ success: true, code: "filled" });
+    expect(value).toBe("Imported context");
+  });
+
+  it("does not overwrite an existing draft", () => {
+    const { result, value } = fill('<textarea placeholder="Send a message">My draft</textarea>', "Imported context");
+    expect(result).toMatchObject({ success: false, code: "not-empty" });
+    expect(value).toBe("My draft");
   });
 });

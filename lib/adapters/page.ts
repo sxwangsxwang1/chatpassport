@@ -10,6 +10,7 @@ export interface PageExtraction {
 
 export interface FillResult {
   success: boolean;
+  code: "filled" | "not-found" | "not-empty";
   message: string;
 }
 
@@ -171,7 +172,19 @@ export function fillComposerOnPage(text: string): FillResult {
   if (!composer) {
     return {
       success: false,
+      code: "not-found",
       message: "Could not find the message box. Copy the context and paste it manually.",
+    };
+  }
+
+  const existingText = composer instanceof HTMLTextAreaElement || composer instanceof HTMLInputElement
+    ? composer.value
+    : composer.textContent ?? "";
+  if (existingText.trim()) {
+    return {
+      success: false,
+      code: "not-empty",
+      message: "The message box already contains text. Clear it before filling to avoid losing your draft.",
     };
   }
 
@@ -196,6 +209,7 @@ export function fillComposerOnPage(text: string): FillResult {
 
   return {
     success: true,
+    code: "filled",
     message: "Conversation context was placed in the message box. Review it before sending.",
   };
 }

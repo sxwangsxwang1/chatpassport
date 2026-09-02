@@ -14,7 +14,8 @@ message box, and leaves the final review and send action to you.
 - Limit a transfer to the latest 20, 50, or 100 messages.
 - Export an open `.chatpassport.json` file or readable Markdown.
 - Import a previously exported ChatPassport file.
-- Fill a supported destination's message box without sending it.
+- Open a supported destination and fill its empty message box automatically.
+- Keep manual Fill and Copy context actions as transfer fallbacks.
 - Clear temporary transfer data manually or automatically after one hour.
 
 All processing happens in the browser. There is no ChatPassport server,
@@ -56,10 +57,16 @@ extension icon to open its side panel.
 1. Open a conversation and click ChatPassport.
 2. Select **Preview current conversation**.
 3. Review the detected title, message count, and size.
-4. Choose a destination and select **Prepare transfer**.
-5. On the destination page, click ChatPassport again.
-6. Select **Fill message box**, review the inserted context, and send it
-   yourself.
+4. Choose a destination and select **Import into ...**.
+5. ChatPassport opens the destination, waits for its message box, and fills the
+   context automatically.
+6. Review the inserted context and send it yourself. ChatPassport never clicks
+   Send.
+
+If the destination editor already contains a draft, ChatPassport leaves it
+untouched. Clear the editor and use **Retry filling**, or use **Copy context** as
+a manual fallback. A successful automatic fill clears the pending transfer so
+refreshing the page cannot insert it twice.
 
 Quick transfers use `chrome.storage.session`. ChatPassport keeps only one
 pending transfer, warns above 6 MB, refuses session storage above 9 MB, and
@@ -70,9 +77,14 @@ file or transferred using only their latest messages.
 
 - Scoped site access: read and fill conversations only on the official
   ChatGPT, Claude, Gemini, and DeepSeek web apps.
-- `scripting`: read the visible conversation or fill the destination editor.
+- `scripting`: read the visible conversation or manually fill the destination
+  editor.
 - `storage`: hold one temporary transfer inside the current browser session.
 - `sidePanel`: display the ChatPassport interface.
+
+The extension also runs a small content script only on those four official web
+apps. It asks the background worker for a transfer addressed to the current
+platform, waits for the editor, fills it, and shows an on-page confirmation.
 
 The extension does not request `<all_urls>`, access to unrelated websites,
 download-management, browsing history, or permanent filesystem access.
