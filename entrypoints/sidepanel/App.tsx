@@ -10,7 +10,7 @@ import {
   SESSION_MAX_BYTES,
   SESSION_WARN_BYTES,
 } from "../../lib/core";
-import { extractActiveConversation, fillActiveComposer, getActiveTabContext } from "../../lib/browser";
+import { extractActiveConversation, getActiveTabContext } from "../../lib/browser";
 import {
   clearPendingTransfer,
   getPendingTransfer,
@@ -25,6 +25,7 @@ import {
   type Passport,
   type Provider,
 } from "../../lib/passport";
+import { RELAY_MAX_DRAFT_CHARS } from "../../lib/relay";
 
 type MessageLimit = "all" | "20" | "50" | "100";
 
@@ -129,25 +130,8 @@ export default function App() {
       await savePendingTransfer(transferablePassport, target);
       const stored = await getPendingTransfer();
       setPending(stored);
-      showNotice(`Opening ${PROVIDER_LABELS[target]}. ChatPassport will fill its empty message box automatically.`, "success");
+      showNotice(`Opening ${PROVIDER_LABELS[target]}. Type your next question there, then choose Continue with context.`, "success");
       await browser.tabs.create({ url: PROVIDER_URLS[target] });
-    } catch (error) {
-      showNotice(errorMessage(error), "error");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function fillComposer() {
-    if (!selected) return;
-    setBusy(true);
-    try {
-      const result = await fillActiveComposer(context);
-      if (result.success && pending) {
-        await clearPendingTransfer();
-        setPending(null);
-      }
-      showNotice(result.message, result.success ? "success" : "error");
     } catch (error) {
       showNotice(errorMessage(error), "error");
     } finally {
@@ -157,6 +141,10 @@ export default function App() {
 
   async function copyContext() {
     if (!context) return;
+    if (context.length > RELAY_MAX_DRAFT_CHARS) {
+      showNotice("This context is too large for a safe copy. Choose fewer messages or export it as a file.", "error");
+      return;
+    }
     try {
       await navigator.clipboard.writeText(context);
       showNotice("Context copied. Paste it into any assistant and review before sending.", "success");
@@ -214,15 +202,10 @@ export default function App() {
           <p>
             {pending.passport.messages.length} messages · {formatBytes(passportSize(pending.passport))}
             <br />Destination: {PROVIDER_LABELS[pending.target]}
-            <br />The destination will fill automatically when its message box is ready.
+            <br />Type a new question on the destination, then choose Continue with context.
           </p>
-          {activeProvider === pending.target && (
-            <button className="primary" onClick={fillComposer} disabled={busy}>
-              Retry filling {PROVIDER_LABELS[activeProvider]}
-            </button>
-          )}
           <div className="button-row">
-            <button className="secondary" onClick={copyContext} disabled={busy}>Copy context</button>
+            <button className="secondary" onClick={copyContext} disabled={busy}>Copy context only</button>
             <button className="text-button danger" onClick={clearPending}>Clear</button>
           </div>
         </section>
@@ -320,7 +303,7 @@ export default function App() {
             Import into {PROVIDER_LABELS[target]}
           </button>
           <p className="privacy-note">
-            Opens the destination and fills an empty message box. You review and send it yourself.
+            Opens the destination in standby mode. Context is added only after you type a new question.
           </p>
         </section>
       )}

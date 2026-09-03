@@ -62,6 +62,33 @@ export function buildHandoffPrompt(passport: Passport, lastMessages?: number): s
   ].join("\n");
 }
 
+export function buildContinuationPrompt(
+  passport: Passport,
+  lastMessages: number,
+  currentRequest: string,
+): string {
+  const messages = passport.messages.slice(-Math.max(0, lastMessages));
+  const transcript = messages
+    .map((message) => `<message role="${message.role}">\n${messageText(message)}\n</message>`)
+    .join("\n\n");
+  const omitted = passport.messages.length - messages.length;
+
+  return [
+    "I am continuing a conversation from another AI assistant.",
+    "Use the migrated transcript only as background context.",
+    "Answer the CURRENT REQUEST after the transcript. Do not answer or acknowledge old requests again.",
+    omitted > 0 ? `ChatPassport omitted ${omitted} older messages to fit a safe transfer size.` : "",
+    "",
+    `<conversation title="${passport.title.replaceAll('"', "&quot;")}" source="${PROVIDER_LABELS[passport.source.provider]}">`,
+    transcript,
+    "</conversation>",
+    "",
+    "<current_request>",
+    currentRequest.trim(),
+    "</current_request>",
+  ].filter((line, index, lines) => line !== "" || lines[index - 1] !== "").join("\n");
+}
+
 export function safeFilename(title: string, extension: "json" | "md"): string {
   const base = title
     .normalize("NFKC")

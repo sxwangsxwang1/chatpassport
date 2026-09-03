@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { PendingTransfer } from "../lib/pending";
-import { canCompleteRelay, createRelayResponse } from "../lib/relay";
+import {
+  canCompleteRelay,
+  composeRelayResponse,
+  createRelayResponse,
+  RELAY_MAX_DRAFT_CHARS,
+  RELAY_MAX_REQUEST_CHARS,
+} from "../lib/relay";
 
 const pending: PendingTransfer = {
   target: "deepseek",
@@ -32,9 +38,68 @@ describe("automatic relay authorization", () => {
       target: "deepseek",
       messageCount: 2,
     });
-    if (response.status === "ready") {
-      expect(response.context).toContain("Remember the launch date.");
+    expect(response).not.toHaveProperty("context");
+  });
+
+  it("combines the transcript with the user's new request only on demand", () => {
+    const response = composeRelayResponse(
+      pending,
+      "passport-1",
+      "What should I do next?",
+      "https://chat.deepseek.com/",
+    );
+    expect(response).toMatchObject({
+      status: "composed",
+      includedMessageCount: 2,
+      omittedMessageCount: 0,
+    });
+    if (response.status === "composed") {
+      expect(response.text).toContain("Remember the launch date.");
+      expect(response.text).toContain("<current_request>\nWhat should I do next?\n</current_request>");
+      expect(response.characterCount).toBe(response.text.length);
+      expect(response.text.length).toBeLessThanOrEqual(RELAY_MAX_DRAFT_CHARS);
     }
+  });
+
+  it("keeps recent complete messages when the safe relay budget is exceeded", () => {
+    const largePending: PendingTransfer = {
+      ...pending,
+      passport: {
+        ...pending.passport,
+        messages: [
+          { id: "old", role: "user", content: [{ type: "text", text: "a".repeat(30_000) }] },
+          { id: "newer", role: "assistant", content: [{ type: "text", text: "b".repeat(30_000) }] },
+          { id: "latest", role: "user", content: [{ type: "text", text: "Latest decision" }] },
+        ],
+      },
+    };
+    const response = composeRelayResponse(
+      largePending,
+      "passport-1",
+      "Continue the plan",
+      "https://chat.deepseek.com/",
+    );
+    expect(response).toMatchObject({
+      status: "composed",
+      includedMessageCount: 2,
+      omittedMessageCount: 1,
+    });
+    if (response.status === "composed") {
+      expect(response.text).not.toContain("a".repeat(100));
+      expect(response.text).toContain("b".repeat(100));
+      expect(response.text).toContain("Latest decision");
+    }
+  });
+
+  it("rejects an empty or oversized new request", () => {
+    expect(composeRelayResponse(pending, "passport-1", "  ", "https://chat.deepseek.com/"))
+      .toMatchObject({ status: "error", code: "empty-request" });
+    expect(composeRelayResponse(
+      pending,
+      "passport-1",
+      "x".repeat(RELAY_MAX_REQUEST_CHARS + 1),
+      "https://chat.deepseek.com/",
+    )).toMatchObject({ status: "error", code: "request-too-large" });
   });
 
   it("does not expose a DeepSeek transfer to another supported platform", () => {

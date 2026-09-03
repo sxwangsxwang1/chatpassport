@@ -2,6 +2,8 @@ import { browser } from "wxt/browser";
 import { clearPendingTransfer, getPendingTransfer } from "../lib/pending";
 import {
   canCompleteRelay,
+  COMPOSE_PENDING_RELAY,
+  composeRelayResponse,
   COMPLETE_PENDING_RELAY,
   createRelayResponse,
   GET_PENDING_RELAY,
@@ -19,6 +21,15 @@ export default defineBackground(() => {
     const senderUrl = sender.tab?.url ?? sender.url ?? "";
     if (message.type === GET_PENDING_RELAY) {
       return getPendingTransfer().then((pending) => createRelayResponse(pending, senderUrl));
+    }
+
+    if (message.type === COMPOSE_PENDING_RELAY) {
+      return getPendingTransfer().then((pending) => composeRelayResponse(
+        pending,
+        message.passportId,
+        message.currentRequest,
+        senderUrl,
+      ));
     }
 
     if (message.type === COMPLETE_PENDING_RELAY) {

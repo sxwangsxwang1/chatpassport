@@ -10,8 +10,13 @@ export interface PageExtraction {
 
 export interface FillResult {
   success: boolean;
-  code: "filled" | "not-found" | "not-empty";
+  code: "filled" | "not-found" | "not-empty" | "changed" | "truncated";
   message: string;
+}
+
+export interface ComposerSnapshot {
+  found: boolean;
+  text: string;
 }
 
 /**
@@ -211,5 +216,93 @@ export function fillComposerOnPage(text: string): FillResult {
     success: true,
     code: "filled",
     message: "Conversation context was placed in the message box. Review it before sending.",
+  };
+}
+
+/** Reads the destination editor without changing it. Must remain self-contained. */
+export function readComposerOnPage(): ComposerSnapshot {
+  const selectors = [
+    "#prompt-textarea",
+    'textarea[placeholder*="message" i]',
+    'textarea[placeholder*="ask" i]',
+    'div[contenteditable="true"].ProseMirror',
+    'rich-textarea div[contenteditable="true"]',
+    '.ql-editor[contenteditable="true"]',
+    'div[contenteditable="true"][role="textbox"]',
+    "textarea",
+  ];
+  const composer = selectors
+    .map((selector) => document.querySelector<HTMLElement>(selector))
+    .find((element) => element && element.getClientRects().length > 0);
+  if (!composer) return { found: false, text: "" };
+  const text = composer instanceof HTMLTextAreaElement || composer instanceof HTMLInputElement
+    ? composer.value
+    : composer.textContent ?? "";
+  return { found: true, text };
+}
+
+/** Replaces a known draft and verifies that the entire value was accepted. */
+export function replaceComposerOnPage(text: string, expectedText: string): FillResult {
+  const selectors = [
+    "#prompt-textarea",
+    'textarea[placeholder*="message" i]',
+    'textarea[placeholder*="ask" i]',
+    'div[contenteditable="true"].ProseMirror',
+    'rich-textarea div[contenteditable="true"]',
+    '.ql-editor[contenteditable="true"]',
+    'div[contenteditable="true"][role="textbox"]',
+    "textarea",
+  ];
+  const composer = selectors
+    .map((selector) => document.querySelector<HTMLElement>(selector))
+    .find((element) => element && element.getClientRects().length > 0);
+  if (!composer) {
+    return { success: false, code: "not-found", message: "Could not find the message box." };
+  }
+
+  const read = () => composer instanceof HTMLTextAreaElement || composer instanceof HTMLInputElement
+    ? composer.value
+    : composer.textContent ?? "";
+  const write = (value: string) => {
+    if (composer instanceof HTMLTextAreaElement || composer instanceof HTMLInputElement) {
+      const prototype = composer instanceof HTMLTextAreaElement
+        ? HTMLTextAreaElement.prototype
+        : HTMLInputElement.prototype;
+      Object.getOwnPropertyDescriptor(prototype, "value")?.set?.call(composer, value);
+    } else {
+      composer.textContent = value;
+    }
+    composer.dispatchEvent(new InputEvent("input", {
+      bubbles: true,
+      composed: true,
+      inputType: "insertText",
+      data: value,
+    }));
+    composer.dispatchEvent(new Event("change", { bubbles: true }));
+  };
+
+  if (read() !== expectedText) {
+    return {
+      success: false,
+      code: "changed",
+      message: "The message box changed while the context was being prepared. Nothing was overwritten.",
+    };
+  }
+
+  composer.focus();
+  write(text);
+  if (read() !== text) {
+    write(expectedText);
+    return {
+      success: false,
+      code: "truncated",
+      message: "The platform did not accept the complete context, so your original question was restored.",
+    };
+  }
+
+  return {
+    success: true,
+    code: "filled",
+    message: "Context and your new request are ready. Review them before sending.",
   };
 }

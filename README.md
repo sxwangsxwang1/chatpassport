@@ -4,8 +4,8 @@ ChatPassport is a local-first Chrome extension for carrying conversation
 context between ChatGPT, Claude, Gemini, and DeepSeek.
 
 It does not replay old messages or send anything automatically. ChatPassport
-turns a conversation into portable context, places it in the destination
-message box, and leaves the final review and send action to you.
+keeps the migrated context on standby until you type a new request, then places
+the combined continuation in the destination message box for review.
 
 ## Current features
 
@@ -14,8 +14,12 @@ message box, and leaves the final review and send action to you.
 - Limit a transfer to the latest 20, 50, or 100 messages.
 - Export an open `.chatpassport.json` file or readable Markdown.
 - Import a previously exported ChatPassport file.
-- Open a supported destination and fill its empty message box automatically.
-- Keep manual Fill and Copy context actions as transfer fallbacks.
+- Open a supported destination with the migrated context waiting in standby.
+- Combine that context with the user's next request instead of sending a
+  context-only message.
+- Verify that the complete combined draft was accepted before reporting
+  success.
+- Keep Copy context as a manual fallback.
 - Clear temporary transfer data manually or automatically after one hour.
 
 All processing happens in the browser. There is no ChatPassport server,
@@ -58,15 +62,18 @@ extension icon to open its side panel.
 2. Select **Preview current conversation**.
 3. Review the detected title, message count, and size.
 4. Choose a destination and select **Import into ...**.
-5. ChatPassport opens the destination, waits for its message box, and fills the
-   context automatically.
-6. Review the inserted context and send it yourself. ChatPassport never clicks
-   Send.
+5. ChatPassport opens the destination and shows that the context is ready. The
+   destination message box remains empty.
+6. Type the new question you actually want the destination assistant to answer.
+7. Select **Continue with context** in the on-page ChatPassport card.
+8. Review the combined context and new request, then use the destination's Send
+   button yourself.
 
-If the destination editor already contains a draft, ChatPassport leaves it
-untouched. Clear the editor and use **Retry filling**, or use **Copy context** as
-a manual fallback. A successful automatic fill clears the pending transfer so
-refreshing the page cannot insert it twice.
+Before inserting the combined draft, ChatPassport checks a conservative
+48,000-character relay budget and keeps the newest complete messages that fit.
+It tells you how many older messages were omitted. After insertion it reads the
+editor back and checks the entire draft; if the platform truncated it, your
+original new question is restored and an error is shown.
 
 Quick transfers use `chrome.storage.session`. ChatPassport keeps only one
 pending transfer, warns above 6 MB, refuses session storage above 9 MB, and
@@ -83,8 +90,9 @@ file or transferred using only their latest messages.
 - `sidePanel`: display the ChatPassport interface.
 
 The extension also runs a small content script only on those four official web
-apps. It asks the background worker for a transfer addressed to the current
-platform, waits for the editor, fills it, and shows an on-page confirmation.
+apps. It asks the background worker only for transfer metadata addressed to the
+current platform. The transcript stays in session storage until the user types
+a new request and explicitly chooses **Continue with context**.
 
 The extension does not request `<all_urls>`, access to unrelated websites,
 download-management, browsing history, or permanent filesystem access.
@@ -109,7 +117,8 @@ The open conversation format is documented in [docs/format.md](docs/format.md).
   transferred.
 - Rich formatting is reduced to portable text and fenced code blocks.
 - Very large transcripts may exceed the destination model's context window
-  even when they fit in browser storage.
+  even when they fit in browser storage. The conservative relay budget reduces
+  this risk but cannot know every model's server-side token limit.
 - Platform parsers and editor selectors may need updates when AI sites change.
 
 ## License
