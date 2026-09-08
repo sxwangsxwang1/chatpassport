@@ -1,0 +1,24 @@
+name: Update star history
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/star-history.yml
+  schedule:
+    - cron: "30 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Generate star history charts
+        uses: xpzouying/star-history@v1
