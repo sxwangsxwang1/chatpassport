@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - .github/workflows/star-history.yml
+      - scripts/update-star-assets.mjs
   schedule:
     - cron: "30 4 * * 1"
   workflow_dispatch:
@@ -20,5 +21,18 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Generate star history charts
-        uses: xpzouying/star-history@v1
+      - name: Generate star assets
+        run: node scripts/update-star-assets.mjs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Commit updated charts
+        run: |
+          if [ -z "$(git status --porcelain -- assets)" ]; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets
+          git commit -m "chore: update star history"
+          git push

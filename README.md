@@ -6,18 +6,20 @@
 
 Move an AI conversation between ChatGPT, Claude, Gemini, and DeepSeek — locally, without API keys or a ChatPassport account.
 
-[![GitHub Stars](https://img.shields.io/github/stars/sxwangsxwang1/chatpassport?style=flat-square&logo=github&label=Stars)](https://github.com/sxwangsxwang1/chatpassport/stargazers)
+[![GitHub Stars](assets/star-badge.svg)](https://github.com/sxwangsxwang1/chatpassport/stargazers)
 ![Chrome MV3](https://img.shields.io/badge/Chrome-Manifest%20V3-4285F4?style=flat-square&logo=googlechrome&logoColor=white)
 ![Local only](https://img.shields.io/badge/data-local%20only-176044?style=flat-square)
 ![No API key](https://img.shields.io/badge/API%20key-not%20required-C6923A?style=flat-square)
 ![Status](https://img.shields.io/badge/status-experimental-EA580C?style=flat-square)
 
-[How it works](#how-it-works) · [Install](#install-from-source) · [Privacy](#privacy-and-permissions) · [Development](#development)
+[How it works](#how-it-works) · [Install](#install-from-source) · [Privacy policy](PRIVACY.md) · [Development](#development)
 
 </div>
 
 > [!IMPORTANT]
 > ChatPassport is an early experimental release. AI websites change their page structure frequently, so an adapter may occasionally need an update.
+
+![ChatPassport standby continuation flow](store-assets/screenshots/02-standby.png)
 
 ## Why ChatPassport?
 
@@ -168,6 +170,8 @@ The extension does **not** request `<all_urls>`, browsing history, download mana
 
 The pending transcript is not exposed directly to a destination content script. The content script first receives transfer metadata; the background worker releases the composed continuation only after validating the selected destination domain and receiving the user's explicit **Continue with context** action.
 
+See the full [ChatPassport Privacy Policy](PRIVACY.md).
+
 ## Troubleshooting
 
 ### Chrome says `manifest.json` is missing
@@ -211,6 +215,7 @@ pnpm typecheck  # Run TypeScript checks
 pnpm test       # Run unit and DOM adapter tests
 pnpm build      # Create .output/chrome-mv3
 pnpm zip        # Create a distributable extension archive
+pnpm release:chrome # Verify and copy the store-ready ZIP into release/
 pnpm check      # Typecheck, test, and build
 ```
 
@@ -230,6 +235,7 @@ lib/
   relay.ts               Relay authorization and continuation budgeting
 tests/                    Core, schema, adapter, and relay tests
 docs/format.md            ChatPassport JSON format
+store-assets/             Chrome Web Store images, listing copy, and checklist
 ```
 
 ## Known limitations
@@ -239,7 +245,7 @@ docs/format.md            ChatPassport JSON format
 - Attachments, images, citations, artifacts, and hidden reasoning are not transferred.
 - Only one pending quick transfer is stored at a time.
 - The safe character budget is not the same as a model-specific token guarantee.
-- Chrome Web Store packaging and review have not been completed.
+- Chrome Web Store review has not yet been completed; the included listing materials remain subject to Google's review.
 
 ## Roadmap
 
@@ -273,8 +279,8 @@ No open-source license has been selected yet. Until a license is added, the repo
 If ChatPassport is useful, consider giving the project a star. The chart below is generated inside this repository by GitHub Actions and tracks its recent star growth.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/sxwangsxwang1/chatpassport/main/assets/star-history-dark.svg" />
-  <img alt="ChatPassport GitHub star history" src="https://raw.githubusercontent.com/sxwangsxwang1/chatpassport/main/assets/star-history.svg" />
+  <source media="(prefers-color-scheme: dark)" srcset="assets/star-history-dark.svg" />
+  <img alt="ChatPassport GitHub star history" src="assets/star-history.svg" />
 </picture>
 
 <div align="center">

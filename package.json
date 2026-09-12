@@ -7,6 +7,7 @@
     "dev": "wxt",
     "build": "wxt build",
     "zip": "wxt zip",
+    "release:chrome": "pnpm check && pnpm zip && node scripts/copy-release.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "check": "pnpm typecheck && pnpm test && pnpm build"

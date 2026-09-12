@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="360" viewBox="0 0 840 360" role="img" aria-label="sxwangsxwang1/chatpassport star history: 0 stars">
+  <rect width="840" height="360" rx="12" fill="#ffffff"/>
+  <g font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif">
+    <text x="68" y="34" fill="#24292f" font-size="20" font-weight="700">Star History</text>
+    <text x="68" y="55" fill="#57606a" font-size="13">sxwangsxwang1/chatpassport · 0 stars</text>
+    <g stroke="#d8dee4" stroke-width="1">
+      <line x1="68" y1="70" x2="812" y2="70"/><line x1="68" y1="130.5" x2="812" y2="130.5"/>
+      <line x1="68" y1="191" x2="812" y2="191"/><line x1="68" y1="251.5" x2="812" y2="251.5"/>
+      <line x1="68" y1="312" x2="812" y2="312"/>
+    </g>
+    <text x="440" y="183" text-anchor="middle" fill="#24292f" font-size="20" font-weight="600">No stars yet</text>
+    <text x="440" y="211" text-anchor="middle" fill="#57606a" font-size="14">Be the first to star ChatPassport ⭐</text>
+    <text x="68" y="342" fill="#57606a" font-size="12">2026-08-31</text>
+    <text x="812" y="342" text-anchor="end" fill="#57606a" font-size="12">2026-09-08</text>
+  </g>
+</svg>
