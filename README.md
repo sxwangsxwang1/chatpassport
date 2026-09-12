@@ -4,187 +4,177 @@
 
 ### Carry the context. Keep control.
 
-Move an AI conversation between ChatGPT, Claude, Gemini, and DeepSeek — locally, without API keys or a ChatPassport account.
+Continue AI conversations across ChatGPT, Claude, Gemini, and DeepSeek — locally, without API keys or a ChatPassport account.
 
 [![GitHub Stars](assets/star-badge.svg)](https://github.com/sxwangsxwang1/chatpassport/stargazers)
 ![Chrome MV3](https://img.shields.io/badge/Chrome-Manifest%20V3-4285F4?style=flat-square&logo=googlechrome&logoColor=white)
+![Availability](https://img.shields.io/badge/status-available-176044?style=flat-square)
 ![Local only](https://img.shields.io/badge/data-local%20only-176044?style=flat-square)
 ![No API key](https://img.shields.io/badge/API%20key-not%20required-C6923A?style=flat-square)
-![Status](https://img.shields.io/badge/status-experimental-EA580C?style=flat-square)
 
-[How it works](#how-it-works) · [Install](#install-from-source) · [Privacy policy](PRIVACY.md) · [Development](#development)
+[Install](#install) · [How to use](#how-to-use) · [Supported platforms](#supported-platforms) · [Privacy](PRIVACY.md) · [Development](#development)
 
 </div>
 
-> [!IMPORTANT]
-> ChatPassport is an early experimental release. AI websites change their page structure frequently, so an adapter may occasionally need an update.
-
 ![ChatPassport standby continuation flow](store-assets/screenshots/02-standby.png)
 
-## Why ChatPassport?
+## What is ChatPassport?
 
-Copying an entire conversation by hand is slow, loses structure, and creates an awkward first message on the destination platform. Sending the copied transcript by itself can also make the new assistant answer an old request or produce a useless “context received” reply.
+ChatPassport moves the useful context of an AI conversation to another supported assistant while keeping the user in control of the final message.
 
-ChatPassport uses a **standby continuation** flow instead:
+Instead of pasting a transcript by hand or sending a context-only message, ChatPassport uses a continuation flow:
 
-1. Capture the visible conversation in the source tab.
-2. Open the destination with the migrated context waiting locally.
-3. Type the new question you actually want to ask.
-4. Combine the recent context and that question into one reviewed continuation.
-5. Send it yourself using the destination platform's normal Send button.
+1. Read the conversation you choose.
+2. Open the destination assistant with the context stored locally.
+3. Let you type the next question first.
+4. Combine that question with the selected conversation context.
+5. Let you review the complete draft and send it yourself.
 
-The destination receives one useful continuation request, not a context-only message.
+The destination receives one useful continuation request. ChatPassport never clicks Send automatically.
 
 ## Features
 
-- Transfer conversations across **ChatGPT, Claude, Gemini, and DeepSeek**.
-- Keep transfer data inside the current browser session.
-- Continue with the latest 20, 50, 100, or all captured messages.
-- Wait for a new user request before inserting migrated context.
-- Never click Send automatically.
-- Preserve the user's draft if the page changes during preparation.
-- Verify the completed editor value and detect incomplete insertion.
-- Keep the newest complete messages when a continuation exceeds the safe relay budget.
-- Export conversations as structured `.chatpassport.json` or readable Markdown.
-- Import previously exported ChatPassport JSON files.
-- Use **Copy context only** as a manual fallback.
-- Require no ChatPassport server, account, analytics, tracking, or API key.
+- Continue conversations across ChatGPT, Claude, Gemini, and DeepSeek.
+- Choose the latest 20, 50, 100, or all captured messages.
+- Keep transfer data in the current browser session.
+- Wait for a new question before inserting migrated context.
+- Verify that the destination editor accepted the complete draft.
+- Preserve the user's original question if insertion fails.
+- Keep the newest complete messages when a draft exceeds the safe size.
+- Export conversations as structured ChatPassport JSON or readable Markdown.
+- Import previously exported `.chatpassport.json` files.
+- Copy formatted context manually when needed.
+- Use the extension without an API key, ChatPassport account, analytics, or tracking.
 
 ## Supported platforms
 
-| Platform | Read conversation | Standby continuation | Manual context | Status |
+| Platform | Read conversations | Continue with context | Import and export | Status |
 | --- | :---: | :---: | :---: | --- |
-| ChatGPT | ✓ | ✓ | ✓ | Experimental |
-| Claude | ✓ | ✓ | ✓ | Experimental |
-| Gemini | ✓ | ✓ | ✓ | Experimental |
-| DeepSeek | ✓ | ✓ | ✓ | Experimental |
+| ChatGPT | ✓ | ✓ | ✓ | Supported |
+| Claude | ✓ | ✓ | ✓ | Supported |
+| Gemini | ✓ | ✓ | ✓ | Supported |
+| DeepSeek | ✓ | ✓ | ✓ | Supported |
 
-Text and fenced code blocks are currently supported. Images, uploaded files, citations, artifacts, and hidden reasoning are not transferred.
+ChatPassport transfers text and fenced code blocks. Images, uploaded files, citations, artifacts, and hidden reasoning are not included in a transfer.
 
-## How it works
+## Install
 
-### 1. Capture
+### Install from the Chrome Web Store
 
-Open a supported conversation, select the ChatPassport extension icon, and choose **Preview current conversation**. ChatPassport reads the active tab only after this action.
+1. Open the Chrome Web Store and search for **ChatPassport**.
+2. Open the ChatPassport listing.
+3. Click **Add to Chrome**.
+4. Confirm by selecting **Add extension**.
+5. Pin ChatPassport from Chrome's Extensions menu for quick access.
 
-### 2. Choose a destination
+ChatPassport works in Google Chrome and Chromium-based browsers that support Manifest V3 and the side panel.
 
-Select the context range and choose **Import into ChatGPT**, **Claude**, **Gemini**, or **DeepSeek**. ChatPassport stores one pending transfer in `chrome.storage.session` and opens the selected destination.
+### Install a packaged build
 
-### 3. Write the next request
+For a local or development installation:
 
-The destination editor stays untouched. An on-page card reports that the context is ready. Type the new question you want the destination assistant to answer.
+1. Download or build the ChatPassport package.
+2. Unzip `chatpassport-<version>-chrome.zip`.
+3. Open `chrome://extensions`.
+4. Enable **Developer mode**.
+5. Select **Load unpacked**.
+6. Choose the unzipped extension folder containing `manifest.json`.
 
-### 4. Continue with context
+Do not select the repository root. When building from source, the correct folder is `.output/chrome-mv3`.
 
-Select **Continue with context** in the ChatPassport card. The extension creates one continuation containing:
+## How to use
+
+### 1. Open a source conversation
+
+Open the conversation you want to continue on ChatGPT, Claude, Gemini, or DeepSeek. Refresh the page once if the extension was installed while the page was already open.
+
+### 2. Preview the conversation
+
+Click the ChatPassport toolbar icon to open the side panel, then select **Preview current conversation**.
+
+ChatPassport displays the conversation title, source, message count, and approximate size. Nothing is stored for transfer until you prepare one.
+
+### 3. Choose the amount of context
+
+Choose one of the available ranges:
+
+- Entire conversation
+- Latest 100 messages
+- Latest 50 messages
+- Latest 20 messages
+
+For long conversations, a recent-message range usually gives the destination assistant more room to answer the new request.
+
+### 4. Choose a destination
+
+Select ChatGPT, Claude, Gemini, or DeepSeek, then click **Import into [destination]**. ChatPassport stores one temporary transfer in Chrome session storage and opens the destination website.
+
+### 5. Type the next question
+
+On the destination page, a **ChatPassport context is ready** card appears. Type the question you want the destination assistant to answer in its normal message box.
+
+ChatPassport leaves the editor untouched until you explicitly continue.
+
+### 6. Continue with context
+
+Click **Continue with context** on the ChatPassport card. The extension combines:
 
 ```text
-migrated conversation context
+selected conversation context
 +
-your new request
+your new question
 ```
 
-ChatPassport then reads the editor back to verify that the full continuation was accepted. Review it and click the platform's native Send button yourself.
+ChatPassport reads the editor back to confirm the continuation was inserted completely. Review the result, then click the destination platform's own Send button.
 
-## Size and truncation protection
+## Conversation size protection
 
-Browser session storage and an AI model's usable input are different limits. A conversation may fit in browser storage while still being too large for a destination editor or model.
+Browser storage capacity and an AI model's usable context window are different limits. ChatPassport applies two safeguards:
 
-ChatPassport therefore applies two layers of protection:
+- Temporary transfers warn above 6 MB and are rejected above 9 MB.
+- Continuation drafts use a conservative 48,000-character budget with space reserved for the new request.
 
-- **Temporary storage:** warns above 6 MB and rejects pending transfers above 9 MB.
-- **Continuation draft:** uses a conservative 48,000-character budget and reserves up to 8,000 characters for the new request.
+When the complete conversation does not fit, ChatPassport keeps the newest complete messages and reports how many older messages were omitted. It does not silently cut a message in half.
 
-If the full transcript does not fit, ChatPassport keeps the newest complete messages and tells you exactly how many older messages were omitted. It does not silently cut a message in half. If the destination modifies or truncates the inserted draft, ChatPassport reports the failure and attempts to restore the user's original question.
-
-The relay budget reduces failures but cannot guarantee every model's server-side token limit. Models and plans may use different context windows.
-
-## Install from source
-
-ChatPassport is not yet published in an extension store. Install the development build as an unpacked Chrome extension.
-
-### Requirements
-
-- Google Chrome or another Chromium browser with side-panel support
-- Node.js 20 or newer
-- pnpm
-
-If `pnpm` is not installed:
-
-```bash
-npm install --global pnpm
-```
-
-On macOS, Homebrew is another option:
-
-```bash
-brew install node pnpm
-```
-
-### Build
-
-```bash
-git clone https://github.com/sxwangsxwang1/chatpassport.git
-cd chatpassport
-pnpm install
-pnpm build
-```
-
-### Load in Chrome
-
-1. Open `chrome://extensions`.
-2. Enable **Developer mode**.
-3. Select **Load unpacked**.
-4. Choose the generated `.output/chrome-mv3` directory — not the repository root.
-5. Pin ChatPassport if desired.
-6. Open or refresh a supported AI conversation and select the extension icon.
-
-After rebuilding, return to `chrome://extensions` and select **Reload** on the ChatPassport card.
+If the destination website changes or truncates the inserted content, ChatPassport reports the problem and restores the user's original question when possible.
 
 ## Export and import
 
-ChatPassport provides two export formats:
-
 | Format | Best for |
 | --- | --- |
-| `.chatpassport.json` | Re-importing, automation, and preserving normalized roles and message order |
-| `.chatpassport.md` | Reading, searching, archiving, and use in note-taking tools |
+| `.chatpassport.json` | Re-importing and preserving normalized roles and message order |
+| `.chatpassport.md` | Reading, searching, archiving, and note-taking tools |
 
-The JSON schema is documented in [docs/format.md](docs/format.md).
+To export, preview a conversation and select **Save JSON** or **Save Markdown**. The file is saved through Chrome's normal download flow.
 
-Exported files use the browser's normal download flow. Imported files are read locally and are not uploaded by ChatPassport.
+To import, open the ChatPassport side panel, select **Import a .chatpassport.json file**, and choose an exported file from your computer. The file is read locally.
+
+The JSON structure is documented in [docs/format.md](docs/format.md).
 
 ## Privacy and permissions
 
-ChatPassport has no backend. Conversation processing happens in the browser, and temporary transfers expire after one hour.
+ChatPassport has no developer-operated backend. Conversation processing happens inside the browser, and pending transfers expire after one hour.
 
-| Permission | Why it is needed |
+| Permission | Purpose |
 | --- | --- |
-| Official platform host access | Read conversations and work with editors only on ChatGPT, Claude, Gemini, and DeepSeek |
-| `scripting` | Extract the visible conversation and update the destination editor after a user action |
-| `storage` | Hold one pending transfer in browser-session storage |
-| `sidePanel` | Display the ChatPassport interface |
+| Supported website access | Read a user-selected conversation and work with the destination editor |
+| `scripting` | Extract visible messages and insert a continuation after a user action |
+| `storage` | Hold one temporary transfer in browser-session storage |
+| `sidePanel` | Display the ChatPassport interface alongside the active page |
 
-The extension does **not** request `<all_urls>`, browsing history, download management, permanent filesystem access, or access to unrelated websites.
+Access is limited to the official ChatGPT, Claude, Gemini, and DeepSeek domains. ChatPassport does not request `<all_urls>`, browsing history, download management, authentication cookies, or unrelated website access.
 
-The pending transcript is not exposed directly to a destination content script. The content script first receives transfer metadata; the background worker releases the composed continuation only after validating the selected destination domain and receiving the user's explicit **Continue with context** action.
-
-See the full [ChatPassport Privacy Policy](PRIVACY.md).
+Read the complete [ChatPassport Privacy Policy](PRIVACY.md).
 
 ## Troubleshooting
 
-### Chrome says `manifest.json` is missing
-
-Run `pnpm build`, then load `.output/chrome-mv3`. The repository root is source code and is not the unpacked extension directory.
-
 ### The side panel says “Unsupported page”
 
-- Confirm the current tab is on an official supported domain.
-- Reload the extension from `chrome://extensions`.
-- Refresh the AI platform tab after reloading the extension.
+- Confirm the active tab is on an official supported domain.
+- Refresh the AI website after installing or updating ChatPassport.
+- Open `chrome://extensions` and confirm ChatPassport is enabled.
 
-Supported domains are:
+Supported domains:
 
 ```text
 chatgpt.com
@@ -196,27 +186,51 @@ chat.deepseek.com
 
 ### The destination card does not appear
 
-- Make sure the transfer destination matches the page you opened.
-- Reload the destination page once.
-- Start a new transfer if the previous one is more than one hour old.
-- Check the ChatPassport card on `chrome://extensions` for runtime errors.
+- Confirm the destination matches the platform selected in ChatPassport.
+- Refresh the destination page once.
+- Start a new transfer if the previous transfer is more than one hour old.
+- Check the ChatPassport entry on `chrome://extensions` for runtime errors.
 
 ### The context is too large
 
-Choose the latest 20, 50, or 100 messages instead of the entire conversation. For archival use, export the full conversation as JSON or Markdown.
+Choose the latest 20, 50, or 100 messages. Export the full conversation as JSON or Markdown when you need a complete archive.
+
+### Chrome says `manifest.json` is missing
+
+When installing a local build, select `.output/chrome-mv3` or the folder produced by unzipping the release package. The repository root contains source code and is not an unpacked extension package.
 
 ## Development
 
 ChatPassport is built with TypeScript, React, WXT, Zod, Vitest, and Chrome Manifest V3.
 
+### Requirements
+
+- Node.js 20 or newer
+- pnpm
+
+Install pnpm if needed:
+
 ```bash
-pnpm dev        # Start the WXT development build
-pnpm typecheck  # Run TypeScript checks
-pnpm test       # Run unit and DOM adapter tests
-pnpm build      # Create .output/chrome-mv3
-pnpm zip        # Create a distributable extension archive
-pnpm release:chrome # Verify and copy the store-ready ZIP into release/
-pnpm check      # Typecheck, test, and build
+npm install --global pnpm
+```
+
+Build and verify:
+
+```bash
+pnpm install
+pnpm check
+pnpm release:chrome
+```
+
+Useful commands:
+
+```bash
+pnpm dev             # Start the development build
+pnpm typecheck       # Run TypeScript checks
+pnpm test            # Run unit and DOM adapter tests
+pnpm build           # Build .output/chrome-mv3
+pnpm zip             # Create the extension ZIP
+pnpm release:chrome  # Verify and copy the upload-ready ZIP into release/
 ```
 
 ### Project structure
@@ -224,7 +238,7 @@ pnpm check      # Typecheck, test, and build
 ```text
 entrypoints/
   background.ts          Background relay and session-storage bridge
-  relay.content.ts       Destination standby-continuation card
+  relay.content.ts       Destination continuation card
   sidepanel/             React side-panel interface
 lib/
   adapters/page.ts       Conversation extraction and editor adapters
@@ -234,35 +248,26 @@ lib/
   pending.ts             Expiring session transfer storage
   relay.ts               Relay authorization and continuation budgeting
 tests/                    Core, schema, adapter, and relay tests
-docs/format.md            ChatPassport JSON format
-store-assets/             Chrome Web Store images, listing copy, and checklist
+docs/                     Format documentation and privacy page
+store-assets/             Chrome Web Store images and listing materials
 ```
 
-## Known limitations
+## Compatibility notes
 
-- Platform extraction and editor adapters depend on website DOM structures that can change without notice.
-- Rich formatting is reduced to portable text and fenced code blocks.
-- Attachments, images, citations, artifacts, and hidden reasoning are not transferred.
+- Rich content is converted to portable text and fenced code blocks.
+- Attachments, images, citations, artifacts, and hidden reasoning stay on the source platform.
 - Only one pending quick transfer is stored at a time.
-- The safe character budget is not the same as a model-specific token guarantee.
-- Chrome Web Store review has not yet been completed; the included listing materials remain subject to Google's review.
-
-## Roadmap
-
-- Improve parser resilience as supported platforms change.
-- Add fixtures for more editor variants and multilingual conversations.
-- Preserve more structured content, including tables and citations.
-- Add optional local summaries for conversations that exceed the relay budget.
-- Prepare signed browser-store releases after the adapter layer stabilizes.
+- Destination models and plans may enforce context limits smaller than ChatPassport's draft budget.
+- Supported websites can update their page structure; refresh ChatPassport after installing an updated version.
 
 ## Contributing
 
-Issues and pull requests are welcome. For platform parsing bugs, include:
+Issues and pull requests are welcome. For a platform compatibility report, include:
 
 - the affected platform and URL pattern;
 - what ChatPassport displayed;
-- the expected message count or editor behavior;
-- extension runtime errors with personal conversation content removed.
+- the expected message count or editor behavior; and
+- runtime errors with personal conversation content removed.
 
 Before submitting a pull request, run:
 
@@ -270,13 +275,9 @@ Before submitting a pull request, run:
 pnpm check
 ```
 
-## License
-
-No open-source license has been selected yet. Until a license is added, the repository remains available for inspection and contribution under GitHub's default copyright terms.
-
 ## Star history
 
-If ChatPassport is useful, consider giving the project a star. The chart below is generated inside this repository by GitHub Actions and tracks its recent star growth.
+If ChatPassport is useful, give the project a star. The chart below is generated in this repository and tracks its recent star growth.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/star-history-dark.svg" />
