@@ -6,13 +6,15 @@
 
 Continue AI conversations across ChatGPT, Claude, Gemini, and DeepSeek — locally, without API keys or a ChatPassport account.
 
+[![Install ChatPassport from the Chrome Web Store](https://img.shields.io/badge/Install-Chrome%20Web%20Store-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/chatpassport/anmmhpfpbaafkgdhalbllhmaejeappmb)
+
 [![GitHub Stars](assets/star-badge.svg)](https://github.com/sxwangsxwang1/chatpassport/stargazers)
 ![Chrome MV3](https://img.shields.io/badge/Chrome-Manifest%20V3-4285F4?style=flat-square&logo=googlechrome&logoColor=white)
-![Availability](https://img.shields.io/badge/status-available-176044?style=flat-square)
+[![Chrome Web Store](https://img.shields.io/badge/status-published-176044?style=flat-square)](https://chromewebstore.google.com/detail/chatpassport/anmmhpfpbaafkgdhalbllhmaejeappmb)
 ![Local only](https://img.shields.io/badge/data-local%20only-176044?style=flat-square)
 ![No API key](https://img.shields.io/badge/API%20key-not%20required-C6923A?style=flat-square)
 
-[Install](#install) · [How to use](#how-to-use) · [Supported platforms](#supported-platforms) · [Privacy](PRIVACY.md) · [Development](#development)
+[Chrome Web Store](https://chromewebstore.google.com/detail/chatpassport/anmmhpfpbaafkgdhalbllhmaejeappmb) · [How to use](#how-to-use) · [Supported platforms](#supported-platforms) · [Privacy](PRIVACY.md) · [Development](#development)
 
 </div>
 
@@ -61,11 +63,10 @@ ChatPassport transfers text and fenced code blocks. Images, uploaded files, cita
 
 ### Install from the Chrome Web Store
 
-1. Open the Chrome Web Store and search for **ChatPassport**.
-2. Open the ChatPassport listing.
-3. Click **Add to Chrome**.
-4. Confirm by selecting **Add extension**.
-5. Pin ChatPassport from Chrome's Extensions menu for quick access.
+1. Open the official [ChatPassport Chrome Web Store listing](https://chromewebstore.google.com/detail/chatpassport/anmmhpfpbaafkgdhalbllhmaejeappmb).
+2. Click **Add to Chrome**.
+3. Confirm by selecting **Add extension**.
+4. Pin ChatPassport from Chrome's Extensions menu for quick access.
 
 ChatPassport works in Google Chrome and Chromium-based browsers that support Manifest V3 and the side panel.
 
