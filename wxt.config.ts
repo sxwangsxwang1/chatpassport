@@ -5,7 +5,7 @@ export default defineConfig({
   manifest: {
     name: "ChatPassport",
     description: "Move AI conversations locally between supported assistants.",
-    permissions: ["scripting", "storage", "sidePanel"],
+    permissions: ["scripting", "storage", "sidePanel", "alarms"],
     host_permissions: [
       "https://chatgpt.com/*",
       "https://chat.openai.com/*",

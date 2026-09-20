@@ -42,7 +42,10 @@ export function passportToMarkdown(passport: Passport): string {
   const body = passport.messages
     .map((message) => `## ${message.role === "user" ? "User" : message.role === "assistant" ? "Assistant" : "System"}\n\n${messageText(message)}`)
     .join("\n\n---\n\n");
-  return `${heading}\n\n${body}\n`;
+  const coverage = passport.capture
+    ? `\n> Capture: ${passport.capture.status}. ${passport.capture.reason}`
+    : "\n> History completeness has not been verified.";
+  return `${heading}${coverage}\n\n${body}\n`;
 }
 
 export function buildHandoffPrompt(passport: Passport, lastMessages?: number): string {
@@ -84,7 +87,7 @@ export function buildContinuationPrompt(
     "</conversation>",
     "",
     "<current_request>",
-    currentRequest.trim(),
+    currentRequest,
     "</current_request>",
   ].filter((line, index, lines) => line !== "" || lines[index - 1] !== "").join("\n");
 }

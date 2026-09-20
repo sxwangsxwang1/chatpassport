@@ -1,45 +1,63 @@
 import { browser } from "wxt/browser";
-import { clearPendingTransfer, getPendingTransfer } from "../lib/pending";
-import {
-  canCompleteRelay,
-  COMPOSE_PENDING_RELAY,
-  composeRelayResponse,
-  COMPLETE_PENDING_RELAY,
-  createRelayResponse,
-  GET_PENDING_RELAY,
-  isRelayRequest,
-} from "../lib/relay";
+import { PENDING_COMMAND } from "../lib/pending";
+import { createPending, createSerialQueue, EXPIRY_PREFIX, readPending, removePending, scheduleExpiry } from "../lib/transfer-store";
+import { canCompleteRelay, COMPOSE_PENDING_RELAY, composeRelayResponse, COMPLETE_PENDING_RELAY, createRelayResponse, GET_PENDING_RELAY, isRelayRequest } from "../lib/relay";
 
 export default defineBackground(() => {
+  const serial = createSerialQueue();
   void browser.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
   void browser.storage.session.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" });
-  void getPendingTransfer();
+  void serial(async () => {
+    const pending = await readPending();
+    if (pending) await scheduleExpiry(pending);
+  }).catch(console.error);
+
+  browser.alarms.onAlarm.addListener((alarm) => {
+    if (!alarm.name.startsWith(EXPIRY_PREFIX)) return;
+    void serial(async () => {
+      const pending = await readPending(); // expiration is enforced even for delayed alarms
+      if (pending && alarm.name === EXPIRY_PREFIX + pending.transferId) await scheduleExpiry(pending);
+    }).catch(console.error);
+  });
+  browser.tabs.onRemoved.addListener((tabId) => {
+    void serial(async () => {
+      const pending = await readPending();
+      if (pending?.targetTabId === tabId) await removePending(pending);
+    }).catch(console.error);
+  });
 
   browser.runtime.onMessage.addListener((message: unknown, sender) => {
-    if (!isRelayRequest(message)) return undefined;
-
-    const senderUrl = sender.tab?.url ?? sender.url ?? "";
-    if (message.type === GET_PENDING_RELAY) {
-      return getPendingTransfer().then((pending) => createRelayResponse(pending, senderUrl));
-    }
-
-    if (message.type === COMPOSE_PENDING_RELAY) {
-      return getPendingTransfer().then((pending) => composeRelayResponse(
-        pending,
-        message.passportId,
-        message.currentRequest,
-        senderUrl,
-      ));
-    }
-
-    if (message.type === COMPLETE_PENDING_RELAY) {
-      return getPendingTransfer().then(async (pending) => {
-        if (!canCompleteRelay(pending, message.passportId, senderUrl)) return false;
-        await clearPendingTransfer();
-        return true;
+    if (sender.id !== browser.runtime.id) return undefined;
+    if (message && typeof message === "object" && "type" in message && message.type === PENDING_COMMAND) {
+      // Only the extension side panel may create, read raw data or clear transfers.
+      if (sender.url !== browser.runtime.getURL("/sidepanel.html") || sender.tab) return undefined;
+      const command = message as Record<string, unknown>;
+      return serial(async () => {
+        try {
+          if (command.action === "save") return { ok: true, pending: await createPending(command.passport, command.target) };
+          const pending = await readPending();
+          if (command.action === "get") return { ok: true, pending };
+          if (command.action === "clear" && pending && pending.transferId === command.transferId) {
+            await removePending(pending);
+            return { ok: true, pending: null };
+          }
+          return { ok: true, pending };
+        } catch (error) {
+          return { ok: false, error: error instanceof Error ? error.message : "Transfer failed." };
+        }
       });
     }
-
-    return undefined;
+    if (!isRelayRequest(message)) return undefined;
+    const identity = { url: sender.url ?? "", tabUrl: sender.tab?.url ?? "", tabId: sender.tab?.id ?? -1, frameId: sender.frameId ?? -1 };
+    return serial(async () => {
+      const pending = await readPending();
+      if (message.type === GET_PENDING_RELAY) return createRelayResponse(pending, identity);
+      if (message.type === COMPOSE_PENDING_RELAY) return composeRelayResponse(pending, message.transferId, message.currentRequest, identity);
+      if (pending && message.type === COMPLETE_PENDING_RELAY && canCompleteRelay(pending, message.transferId, identity)) {
+        await removePending(pending);
+        return true;
+      }
+      return false;
+    });
   });
 });

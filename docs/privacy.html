@@ -21,19 +21,19 @@
 </head>
 <body>
 <main>
-  <header><div class="mark" aria-hidden="true">CP</div><div><h1>ChatPassport Privacy Policy</h1><div class="date">Effective September 9, 2026</div></div></header>
-  <p>ChatPassport helps users carry the visible text of an AI conversation between supported AI assistant websites. It operates locally in the user's browser and does not require a ChatPassport account or API key.</p>
+  <header><div class="mark" aria-hidden="true">CP</div><div><h1>ChatPassport Privacy Policy</h1><div class="date">Effective September 20, 2026</div></div></header>
+  <p>ChatPassport helps users carry the rendered text of an AI conversation between supported AI assistant websites. It operates locally in the user's browser and does not require a ChatPassport account or API key.</p>
   <h2>Data ChatPassport handles</h2>
-  <p>After the user explicitly selects <strong>Preview current conversation</strong>, ChatPassport reads visible conversation text and basic metadata—message roles, source platform, page title, and page URL—from the active supported tab. A prepared transfer also handles that conversation and the user's new question. Imported ChatPassport JSON files are read locally only at the user's request.</p>
+  <p>After the user explicitly selects <strong>Capture conversation history</strong>, ChatPassport scrolls the selected conversation to load older messages and reads rendered conversation text and basic metadata—message roles, source platform, page title, and page URL—from the active supported tab. A prepared transfer also handles that conversation and the user's new question. Imported ChatPassport JSON files are read locally only at the user's request.</p>
   <p>This information may contain website content, personal communications, and user-generated content. ChatPassport does not read passwords, authentication cookies, payment information, or unrelated websites.</p>
   <h2>Use, storage, and retention</h2>
   <p>Data is used only to preview, export, or transfer a user-selected conversation and to place a combined continuation draft into a supported destination editor. ChatPassport never clicks Send automatically.</p>
-  <p>One pending transfer is stored in <code>chrome.storage.session</code>. It is removed when completed or cleared, expires after one hour, and is cleared when the browser session ends. Files are exported only through the browser's normal download flow.</p>
+  <p>One pending transfer is stored in <code>chrome.storage.session</code>. It is bound to one destination tab, becomes inaccessible after one hour, and is removed on completion, manual clearing, or closure of that tab. Chrome alarms schedule cleanup, but sleeping or stopped browsers may delay deletion until Chrome resumes. Expiration is checked on every access and worker startup. Session storage is cleared when the browser session ends. Previews remain in side-panel memory until replaced or the panel is closed. Files are exported only through the browser's normal download flow.</p>
   <h2>Transmission and sharing</h2>
-  <p>ChatPassport has no developer-operated backend and does not send conversation data, drafts, imported files, browsing history, or analytics to the developer, advertisers, analytics providers, or data brokers. Conversation data reaches an AI service only after the user reviews the draft and manually sends it on that service's website.</p>
+  <p>ChatPassport has no developer-operated backend and does not send conversation data, drafts, imported files, browsing history, or analytics to the developer, advertisers, analytics providers, or data brokers. Once you click Continue with context and the draft is inserted, the destination website and its scripts can read it and may sync or transmit it before you click Send. ChatPassport never clicks Send automatically. Scrolling history may cause the source website to load older messages through its normal network requests. Each website handles data under its own terms and privacy policy.</p>
   <p>ChatPassport does not sell user data, use it for advertising or credit decisions, or allow the developer or other humans to read it.</p>
   <h2>Permissions</h2>
-  <p>Access is limited to the official ChatGPT, Claude, Gemini, and DeepSeek domains. Chrome's scripting, storage, and side-panel permissions support user-initiated capture, one temporary transfer, destination-editor preparation, and the extension interface.</p>
+  <p>Access is limited to the official ChatGPT, Claude, Gemini, and DeepSeek domains. Chrome's scripting, storage, side-panel, and alarms permissions support user-initiated capture, one temporary transfer, destination-editor preparation, the extension interface, and expired-transfer cleanup.</p>
   <h2>User controls</h2>
   <p>Users can clear a pending transfer in ChatPassport, delete exported files through their operating system, or uninstall the extension. Uninstalling removes extension-managed local data.</p>
   <h2>Chrome Web Store Limited Use</h2>

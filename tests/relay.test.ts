@@ -8,13 +8,17 @@ import {
   RELAY_MAX_REQUEST_CHARS,
 } from "../lib/relay";
 
+const sender = (url: string) => ({ url, tabUrl: url, tabId: 42, frameId: 0 });
+
 const pending: PendingTransfer = {
   target: "deepseek",
+  transferId: "transfer-1",
+  targetTabId: 42,
   savedAt: Date.now(),
   passport: {
     format: "chatpassport",
     version: "1.0",
-    id: "passport-1",
+    id: "transfer-1",
     title: "Migration test",
     source: {
       provider: "chatgpt",
@@ -29,11 +33,27 @@ const pending: PendingTransfer = {
 };
 
 describe("automatic relay authorization", () => {
+  it('preserves leading indentation, empty lines and trailing newlines in a new request', () => {
+    const request = '  first\n\n    second\n';
+    const response = composeRelayResponse(pending, pending.transferId, request, sender('https://chat.deepseek.com/'));
+    expect(response.status).toBe('composed');
+    if (response.status === 'composed') expect(response.text).toContain(`<current_request>\n${request}\n</current_request>`);
+  });
+  it('rejects a different tab, iframe, insecure scheme and stale transfer', () => {
+    const identity = sender('https://chat.deepseek.com/');
+    expect(createRelayResponse(pending, { ...identity, tabId: 43 })).toEqual({ status: 'none' });
+    expect(createRelayResponse(pending, { ...identity, frameId: 1 })).toEqual({ status: 'none' });
+    expect(createRelayResponse(pending, sender('http://chat.deepseek.com/'))).toEqual({ status: 'none' });
+    expect(createRelayResponse({ ...pending, savedAt: Date.now() - 3_600_000 }, identity)).toEqual({ status: 'none' });
+    const fresh = { ...pending, transferId: 'transfer-2' };
+    expect(canCompleteRelay(fresh, 'transfer-1', identity)).toBe(false);
+    expect(composeRelayResponse(fresh, 'transfer-1', 'Question', identity)).toEqual({ status: 'none' });
+  });
   it("returns context only to the selected destination platform", () => {
-    const response = createRelayResponse(pending, "https://chat.deepseek.com/");
+    const response = createRelayResponse(pending, sender("https://chat.deepseek.com/"));
     expect(response).toMatchObject({
       status: "ready",
-      passportId: "passport-1",
+      transferId: "transfer-1",
       source: "chatgpt",
       target: "deepseek",
       messageCount: 2,
@@ -44,9 +64,9 @@ describe("automatic relay authorization", () => {
   it("combines the transcript with the user's new request only on demand", () => {
     const response = composeRelayResponse(
       pending,
-      "passport-1",
+      "transfer-1",
       "What should I do next?",
-      "https://chat.deepseek.com/",
+      sender("https://chat.deepseek.com/"),
     );
     expect(response).toMatchObject({
       status: "composed",
@@ -75,9 +95,9 @@ describe("automatic relay authorization", () => {
     };
     const response = composeRelayResponse(
       largePending,
-      "passport-1",
+      "transfer-1",
       "Continue the plan",
-      "https://chat.deepseek.com/",
+      sender("https://chat.deepseek.com/"),
     );
     expect(response).toMatchObject({
       status: "composed",
@@ -92,28 +112,28 @@ describe("automatic relay authorization", () => {
   });
 
   it("rejects an empty or oversized new request", () => {
-    expect(composeRelayResponse(pending, "passport-1", "  ", "https://chat.deepseek.com/"))
+    expect(composeRelayResponse(pending, "transfer-1", "  ", sender("https://chat.deepseek.com/")))
       .toMatchObject({ status: "error", code: "empty-request" });
     expect(composeRelayResponse(
       pending,
-      "passport-1",
+      "transfer-1",
       "x".repeat(RELAY_MAX_REQUEST_CHARS + 1),
-      "https://chat.deepseek.com/",
+      sender("https://chat.deepseek.com/"),
     )).toMatchObject({ status: "error", code: "request-too-large" });
   });
 
   it("does not expose a DeepSeek transfer to another supported platform", () => {
-    expect(createRelayResponse(pending, "https://claude.ai/new")).toEqual({ status: "none" });
+    expect(createRelayResponse(pending, sender("https://claude.ai/new"))).toEqual({ status: "none" });
   });
 
   it("rejects unsupported and malformed sender URLs", () => {
-    expect(createRelayResponse(pending, "https://example.com/")).toEqual({ status: "none" });
-    expect(createRelayResponse(pending, "not a URL")).toEqual({ status: "none" });
+    expect(createRelayResponse(pending, sender("https://example.com/"))).toEqual({ status: "none" });
+    expect(createRelayResponse(pending, sender("not a URL"))).toEqual({ status: "none" });
   });
 
   it("allows completion only for the same passport on the selected destination", () => {
-    expect(canCompleteRelay(pending, "passport-1", "https://chat.deepseek.com/")).toBe(true);
-    expect(canCompleteRelay(pending, "another-id", "https://chat.deepseek.com/")).toBe(false);
-    expect(canCompleteRelay(pending, "passport-1", "https://chatgpt.com/")).toBe(false);
+    expect(canCompleteRelay(pending, "transfer-1", sender("https://chat.deepseek.com/"))).toBe(true);
+    expect(canCompleteRelay(pending, "another-id", sender("https://chat.deepseek.com/"))).toBe(false);
+    expect(canCompleteRelay(pending, "transfer-1", sender("https://chatgpt.com/"))).toBe(false);
   });
 });

@@ -1,4 +1,5 @@
 import { buildContinuationPrompt, detectProvider } from "./core";
+import { PENDING_TTL_MS } from "./core";
 import type { PendingTransfer } from "./pending";
 import { PROVIDERS, type Provider } from "./passport";
 
@@ -14,13 +15,13 @@ export interface GetPendingRelayRequest {
 
 export interface ComposePendingRelayRequest {
   type: typeof COMPOSE_PENDING_RELAY;
-  passportId: string;
+  transferId: string;
   currentRequest: string;
 }
 
 export interface CompletePendingRelayRequest {
   type: typeof COMPLETE_PENDING_RELAY;
-  passportId: string;
+  transferId: string;
 }
 
 export type RelayRequest =
@@ -30,7 +31,7 @@ export type RelayRequest =
 
 export interface ReadyRelayResponse {
   status: "ready";
-  passportId: string;
+  transferId: string;
   title: string;
   source: Provider;
   target: Provider;
@@ -39,7 +40,7 @@ export interface ReadyRelayResponse {
 
 export interface ComposedRelayResponse {
   status: "composed";
-  passportId: string;
+  transferId: string;
   text: string;
   includedMessageCount: number;
   omittedMessageCount: number;
@@ -67,9 +68,9 @@ export function isRelayRequest(value: unknown): value is RelayRequest {
   const message = value as Record<string, unknown>;
   if (message.type === GET_PENDING_RELAY) return true;
   if (message.type === COMPOSE_PENDING_RELAY) {
-    return typeof message.passportId === "string" && typeof message.currentRequest === "string";
+    return typeof message.transferId === "string" && typeof message.currentRequest === "string";
   }
-  return message.type === COMPLETE_PENDING_RELAY && typeof message.passportId === "string";
+  return message.type === COMPLETE_PENDING_RELAY && typeof message.transferId === "string";
 }
 
 function isProvider(value: unknown): value is Provider {
@@ -84,27 +85,31 @@ export function isRelayResponse(value: unknown): value is RelayResponse {
     return typeof response.code === "string" && typeof response.message === "string";
   }
   if (response.status === "ready") {
-    return typeof response.passportId === "string"
+    return typeof response.transferId === "string"
       && typeof response.title === "string"
       && isProvider(response.source)
       && isProvider(response.target)
       && typeof response.messageCount === "number";
   }
   return response.status === "composed"
-    && typeof response.passportId === "string"
+    && typeof response.transferId === "string"
     && typeof response.text === "string"
     && typeof response.includedMessageCount === "number"
     && typeof response.omittedMessageCount === "number"
     && typeof response.characterCount === "number";
 }
 
+export interface RelaySender { url: string; tabId: number; frameId: number; tabUrl: string }
+
 function authorizedPending(
   pending: PendingTransfer | null,
-  senderUrl: string,
+  sender: RelaySender,
 ): PendingTransfer | null {
-  if (!pending) return null;
+  if (!pending || sender.frameId !== 0 || sender.tabId !== pending.targetTabId
+    || Date.now() >= pending.savedAt + PENDING_TTL_MS || pending.savedAt > Date.now()) return null;
   try {
-    return detectProvider(senderUrl) === pending.target ? pending : null;
+    return new URL(sender.url).protocol === 'https:' && new URL(sender.tabUrl).protocol === 'https:'
+      && detectProvider(sender.url) === pending.target && detectProvider(sender.tabUrl) === pending.target ? pending : null;
   } catch {
     return null;
   }
@@ -112,14 +117,14 @@ function authorizedPending(
 
 export function createRelayResponse(
   pending: PendingTransfer | null,
-  senderUrl: string,
+  sender: RelaySender,
 ): RelayResponse {
-  const authorized = authorizedPending(pending, senderUrl);
+  const authorized = authorizedPending(pending, sender);
   if (!authorized) return { status: "none" };
 
   return {
     status: "ready",
-    passportId: authorized.passport.id,
+    transferId: authorized.transferId,
     title: authorized.passport.title,
     source: authorized.passport.source.provider,
     target: authorized.target,
@@ -129,15 +134,15 @@ export function createRelayResponse(
 
 export function composeRelayResponse(
   pending: PendingTransfer | null,
-  passportId: string,
+  transferId: string,
   currentRequest: string,
-  senderUrl: string,
+  sender: RelaySender,
 ): RelayResponse {
-  const authorized = authorizedPending(pending, senderUrl);
-  if (!authorized || authorized.passport.id !== passportId) return { status: "none" };
+  const authorized = authorizedPending(pending, sender);
+  if (!authorized || authorized.transferId !== transferId) return { status: "none" };
 
-  const request = currentRequest.trim();
-  if (!request) {
+  const request = currentRequest;
+  if (!request.trim()) {
     return { status: "error", code: "empty-request", message: "Type your next question first." };
   }
   if (request.length > RELAY_MAX_REQUEST_CHARS) {
@@ -182,7 +187,7 @@ export function composeRelayResponse(
 
   return {
     status: "composed",
-    passportId,
+    transferId,
     text: bestText,
     includedMessageCount: bestCount,
     omittedMessageCount: total - bestCount,
@@ -192,9 +197,9 @@ export function composeRelayResponse(
 
 export function canCompleteRelay(
   pending: PendingTransfer | null,
-  passportId: string,
-  senderUrl: string,
+  transferId: string,
+  sender: RelaySender,
 ): boolean {
-  const authorized = authorizedPending(pending, senderUrl);
-  return authorized?.passport.id === passportId;
+  const authorized = authorizedPending(pending, sender);
+  return authorized?.transferId === transferId;
 }

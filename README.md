@@ -91,11 +91,11 @@ Open the conversation you want to continue on ChatGPT, Claude, Gemini, or DeepSe
 
 ### 2. Preview the conversation
 
-Click the ChatPassport toolbar icon to open the side panel, then select **Preview current conversation**.
+Click the ChatPassport toolbar icon to open the side panel, then select **Capture conversation history**.
 
 ChatPassport displays the conversation title, source, message count, and approximate size. Nothing is stored for transfer until you prepare one.
 
-Only messages currently loaded on the page can be detected. Long conversations may load older messages on demand or remove off-screen messages, so the detected count is not a guarantee of complete history. Try scrolling to the top, wait for messages to load, then preview again. Exported files contain the same captured messages and may also be incomplete.
+ChatPassport automatically scrolls backward and forward through the conversation, loading older messages and merging overlapping rendered windows, including virtualized lists. It restores your reading position afterward. You can stop and keep collected messages; capture also stops after two minutes or at its safety size limit. The preview and JSON record whether page boundaries were reached or capture is partial. This is not proof of complete server history: hidden branches, collapsed content, slow or unsupported loaders may still be absent. Do not navigate or edit the conversation during capture.
 
 ### 3. Choose the amount of context
 
@@ -110,7 +110,7 @@ For long conversations, a recent-message range usually gives the destination ass
 
 ### 4. Choose a destination
 
-Select ChatGPT, Claude, Gemini, or DeepSeek, then click **Import into [destination]**. ChatPassport stores one temporary transfer in Chrome session storage and opens the destination website.
+Select ChatGPT, Claude, Gemini, or DeepSeek, then click **Import into [destination]**. ChatPassport stores one temporary transfer in Chrome session storage and binds it to the newly opened destination tab. Other tabs on the same platform cannot claim it.
 
 ### 5. Type the next question
 
@@ -139,7 +139,7 @@ Browser storage capacity and an AI model's usable context window are different l
 
 When the selected messages do not fit, ChatPassport keeps the newest complete messages from that selection and reports how many older messages were omitted. It does not silently cut a message in half. This size check cannot detect messages that were never loaded or captured from the source page.
 
-If the destination website changes or truncates the inserted content, ChatPassport reports the problem and restores the user's original question when possible.
+If the destination website changes or truncates the inserted content, ChatPassport reports the problem and shows the original question for manual recovery. It does not automatically roll back over a changed editor. User edits, navigation or editor replacement during preparation abort the operation.
 
 ## Export and import
 
@@ -156,14 +156,17 @@ The JSON structure is documented in [docs/format.md](docs/format.md).
 
 ## Privacy and permissions
 
-ChatPassport has no developer-operated backend. Conversation processing happens inside the browser, and pending transfers expire after one hour.
+ChatPassport has no developer-operated backend. Conversation processing happens inside the browser, and pending transfers become inaccessible after one hour. Alarms schedule cleanup; sleeping or stopped browsers can delay deletion until Chrome resumes. Expiration is rechecked on access and worker startup.
+
+Once context is inserted into the destination editor, that website can read or sync the draft before you click Send. ChatPassport never sends it automatically. Loading older history may trigger normal requests made by the source website.
 
 | Permission | Purpose |
 | --- | --- |
 | Supported website access | Read a user-selected conversation and work with the destination editor |
-| `scripting` | Extract visible messages and insert a continuation after a user action |
+| `scripting` | Load and extract rendered messages and insert a continuation after a user action |
 | `storage` | Hold one temporary transfer in browser-session storage |
 | `sidePanel` | Display the ChatPassport interface alongside the active page |
+| `alarms` | Schedule cleanup of expired transfers |
 
 Access is limited to the official ChatGPT, Claude, Gemini, and DeepSeek domains. ChatPassport does not request `<all_urls>`, browsing history, download management, authentication cookies, or unrelated website access.
 
@@ -189,7 +192,7 @@ chat.deepseek.com
 
 ### The destination card does not appear
 
-- Confirm the destination matches the platform selected in ChatPassport.
+- Use the destination tab opened for this transfer, not another tab on the same platform.
 - Refresh the destination page once.
 - Start a new transfer if the previous transfer is more than one hour old.
 - Check the ChatPassport entry on `chrome://extensions` for runtime errors.

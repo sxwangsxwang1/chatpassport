@@ -1,5 +1,5 @@
 import { browser } from "wxt/browser";
-import { readComposerOnPage, replaceComposerOnPage } from "../lib/adapters/page";
+import { beginComposerTransaction } from "../lib/adapters/composer";
 import { PROVIDER_LABELS } from "../lib/core";
 import {
   COMPOSE_PENDING_RELAY,
@@ -57,7 +57,7 @@ function showRelayReady(relay: ReadyRelayResponse): void {
   heading.textContent = "ChatPassport context is ready";
 
   const detail = document.createElement("p");
-  detail.textContent = `${relay.messageCount} messages from ${PROVIDER_LABELS[relay.source]} are waiting. Type your next question in the message box, then continue with context.`;
+  detail.textContent = `${relay.messageCount} messages from ${PROVIDER_LABELS[relay.source]} are waiting. Type your next question, then continue. Once inserted, the destination website can read or sync the draft before you click Send.`;
 
   const feedback = document.createElement("p");
   feedback.className = "feedback";
@@ -128,75 +128,68 @@ interface RelayElements {
 }
 
 async function prepareContinuation(relay: ReadyRelayResponse, elements: RelayElements): Promise<void> {
-  const snapshot = readComposerOnPage();
-  if (!snapshot.found) {
+  const transaction = beginComposerTransaction();
+  if (!transaction) {
     showError(elements, "The message box is not ready yet. Wait for the page to finish loading and try again.");
     return;
   }
-  if (!snapshot.text.trim()) {
-    showError(elements, "Type your next question in the message box first.");
-    return;
-  }
-
-  elements.feedback.hidden = true;
-  elements.continueButton.disabled = true;
-  elements.continueButton.textContent = "Preparing…";
-
-  let response: unknown;
   try {
-    response = await browser.runtime.sendMessage({
-      type: COMPOSE_PENDING_RELAY,
-      passportId: relay.passportId,
-      currentRequest: snapshot.text,
-    });
+    if (!transaction.original.trim()) {
+      showError(elements, "Type your next question in the message box first.");
+      return;
+    }
+
+    elements.feedback.hidden = true;
+    elements.continueButton.disabled = true;
+    elements.continueButton.textContent = "Preparing…";
+
+    let response: unknown;
+    try {
+      response = await browser.runtime.sendMessage({
+        type: COMPOSE_PENDING_RELAY,
+        transferId: relay.transferId,
+        currentRequest: transaction.original,
+      });
+    } catch {
+      showError(elements, "The extension could not prepare this transfer. Open ChatPassport and try again.");
+      resetButton(elements.continueButton);
+      return;
+    }
+
+    if (!isRelayResponse(response) || response.status === "none") {
+      showError(elements, "This transfer is no longer available. Start it again from the source conversation.");
+      resetButton(elements.continueButton);
+      return;
+    }
+    if (response.status === "error") {
+      showError(elements, response.message);
+      resetButton(elements.continueButton);
+      return;
+    }
+    if (response.status !== "composed" || response.transferId !== relay.transferId) {
+      showError(elements, "The extension returned an unexpected transfer response.");
+      resetButton(elements.continueButton);
+      return;
+    }
+
+    await finishComposerReplacement(relay, response, transaction, elements);
   } catch {
-    showError(elements, "The extension could not prepare this transfer. Open ChatPassport and try again.");
+    showError(elements, `The draft could not be verified. Review the editor. Original question: ${transaction.original}`);
     resetButton(elements.continueButton);
-    return;
+  } finally {
+    transaction.dispose();
   }
-
-  if (!isRelayResponse(response) || response.status === "none") {
-    showError(elements, "This transfer is no longer available. Start it again from the source conversation.");
-    resetButton(elements.continueButton);
-    return;
-  }
-  if (response.status === "error") {
-    showError(elements, response.message);
-    resetButton(elements.continueButton);
-    return;
-  }
-  if (response.status !== "composed") {
-    showError(elements, "The extension returned an unexpected transfer response.");
-    resetButton(elements.continueButton);
-    return;
-  }
-
-  await finishComposerReplacement(relay, response, snapshot.text, elements);
 }
 
 async function finishComposerReplacement(
   relay: ReadyRelayResponse,
   composed: ComposedRelayResponse,
-  originalRequest: string,
+  transaction: NonNullable<ReturnType<typeof beginComposerTransaction>>,
   elements: RelayElements,
 ): Promise<void> {
-  const result = replaceComposerOnPage(composed.text, originalRequest);
+  const result = await transaction.replace(composed.text);
   if (!result.success) {
-    showError(elements, result.message);
-    resetButton(elements.continueButton);
-    return;
-  }
-
-  await new Promise<void>((resolve) => window.setTimeout(resolve, 150));
-  const verification = readComposerOnPage();
-  if (!verification.found || verification.text !== composed.text) {
-    if (verification.found && verification.text !== originalRequest) {
-      replaceComposerOnPage(originalRequest, verification.text);
-    }
-    showError(
-      elements,
-      "The platform changed or truncated the combined draft after insertion. Your original question was restored when possible.",
-    );
+    showError(elements, `${result.message}\nOriginal question: ${transaction.original}`);
     resetButton(elements.continueButton);
     return;
   }
@@ -211,7 +204,7 @@ async function finishComposerReplacement(
 
   void browser.runtime.sendMessage({
     type: COMPLETE_PENDING_RELAY,
-    passportId: relay.passportId,
+    transferId: relay.transferId,
   }).catch(() => false);
 }
 

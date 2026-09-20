@@ -28,6 +28,11 @@ export const passportSchema = z.object({
     exportedAt: z.string().datetime(),
   }),
   messages: z.array(messageSchema).min(1),
+  capture: z.object({
+    method: z.literal("scroll"),
+    status: z.enum(["page-history", "partial"]),
+    reason: z.string(),
+  }).optional(),
 });
 
 export type Passport = z.infer<typeof passportSchema>;

@@ -5,7 +5,6 @@ import {
   formatBytes,
   passportToMarkdown,
   PROVIDER_LABELS,
-  PROVIDER_URLS,
   safeFilename,
   SESSION_MAX_BYTES,
   SESSION_WARN_BYTES,
@@ -45,6 +44,9 @@ function errorMessage(error: unknown): string {
 
 export default function App() {
   const fileInput = useRef<HTMLInputElement>(null);
+  const captureController = useRef<AbortController | null>(null);
+  const refreshGeneration = useRef(0);
+  const [capturing, setCapturing] = useState(false);
   const [activeProvider, setActiveProvider] = useState<Provider | null>(null);
   const [passport, setPassport] = useState<Passport | null>(null);
   const [previewOrigin, setPreviewOrigin] = useState<"page" | "file">("page");
@@ -55,7 +57,6 @@ export default function App() {
   const [notice, setNotice] = useState<string>("");
   const [noticeKind, setNoticeKind] = useState<"info" | "success" | "error">("info");
 
-  const selected = pending?.passport ?? passport ?? null;
   const previewSize = useMemo(() => passport ? passportSize(passport) : 0, [passport]);
   const transferablePassport = useMemo(() => {
     if (!passport || limit === "all") return passport;
@@ -66,9 +67,8 @@ export default function App() {
     [transferablePassport],
   );
   const context = useMemo(() => {
-    if (!selected) return "";
-    return buildHandoffPrompt(selected, limit === "all" ? undefined : Number(limit));
-  }, [selected, limit]);
+    return pending ? buildHandoffPrompt(pending.passport) : "";
+  }, [pending]);
 
   function showNotice(message: string, kind: "info" | "success" | "error" = "info") {
     setNotice(message);
@@ -76,13 +76,14 @@ export default function App() {
   }
 
   async function refreshContext() {
+    const generation = ++refreshGeneration.current;
     try {
       const [tab, stored] = await Promise.all([getActiveTabContext(), getPendingTransfer()]);
+      if (generation !== refreshGeneration.current) return;
       setActiveProvider(tab.provider);
       setPending(stored);
-      if (stored) setTarget(stored.target);
     } catch (error) {
-      showNotice(errorMessage(error), "error");
+      if (generation === refreshGeneration.current) showNotice(errorMessage(error), "error");
     }
   }
 
@@ -96,6 +97,8 @@ export default function App() {
     browser.storage.onChanged.addListener(onStorageChanged);
     window.addEventListener("focus", onWindowFocus);
     return () => {
+      captureController.current?.abort();
+      refreshGeneration.current++;
       browser.tabs.onActivated.removeListener(onTabChanged);
       browser.tabs.onUpdated.removeListener(onTabChanged);
       browser.storage.onChanged.removeListener(onStorageChanged);
@@ -105,18 +108,26 @@ export default function App() {
 
   async function scanConversation() {
     setBusy(true);
-    showNotice("Reading the visible conversation…");
+    setCapturing(true);
+    const controller = new AbortController();
+    captureController.current = controller;
+    showNotice("Loading conversation history. Please leave this conversation unchanged…");
     try {
-      const extracted = await extractActiveConversation();
+      const extracted = await extractActiveConversation({
+        signal: controller.signal,
+        onProgress: (count, phase) => showNotice(`${phase}… ${count} messages collected. You can stop and keep partial results.`),
+      });
       setPassport(extracted);
       setPreviewOrigin("page");
-      const nextTarget = PROVIDERS.find((provider) => provider !== extracted.source.provider);
-      if (nextTarget) setTarget(nextTarget);
-      showNotice(`Detected ${extracted.messages.length} messages currently loaded on the page. Nothing has been saved yet.`, "success");
+      setLimit("all");
+      setTarget((current) => current !== extracted.source.provider ? current : PROVIDERS.find((provider) => provider !== extracted.source.provider)!);
+      showNotice(`Captured ${extracted.messages.length} messages. ${extracted.capture?.reason}`, extracted.capture?.status === "partial" ? "info" : "success");
     } catch (error) {
       showNotice(errorMessage(error), "error");
     } finally {
       setBusy(false);
+      setCapturing(false);
+      captureController.current = null;
     }
   }
 
@@ -129,11 +140,11 @@ export default function App() {
 
     setBusy(true);
     try {
-      await savePendingTransfer(transferablePassport, target);
-      const stored = await getPendingTransfer();
+      ++refreshGeneration.current;
+      const stored = await savePendingTransfer(transferablePassport, target);
+      ++refreshGeneration.current;
       setPending(stored);
       showNotice(`Opening ${PROVIDER_LABELS[target]}. Type your next question there, then choose Continue with context.`, "success");
-      await browser.tabs.create({ url: PROVIDER_URLS[target] });
     } catch (error) {
       showNotice(errorMessage(error), "error");
     } finally {
@@ -143,12 +154,19 @@ export default function App() {
 
   async function copyContext() {
     if (!context) return;
-    if (context.length > RELAY_MAX_DRAFT_CHARS) {
-      showNotice("This context is too large for a safe copy. Choose fewer messages or export it as a file.", "error");
-      return;
-    }
     try {
-      await navigator.clipboard.writeText(context);
+      const stored = await getPendingTransfer();
+      if (!stored || stored.transferId !== pending?.transferId) {
+        await refreshContext();
+        showNotice("This transfer expired or was replaced. Start a new transfer.", "error");
+        return;
+      }
+      const currentContext = buildHandoffPrompt(stored.passport);
+      if (currentContext.length > RELAY_MAX_DRAFT_CHARS) {
+        showNotice("This saved transfer is too large to copy. Prepare a new transfer with fewer messages, or export the preview as a file.", "error");
+        return;
+      }
+      await navigator.clipboard.writeText(currentContext);
       showNotice("Context copied. Paste it into any assistant and review before sending.", "success");
     } catch {
       showNotice("Clipboard access failed. Export the conversation as Markdown instead.", "error");
@@ -156,9 +174,12 @@ export default function App() {
   }
 
   async function clearPending() {
-    await clearPendingTransfer();
-    setPending(null);
-    showNotice("Temporary transfer cleared.", "success");
+    if (!pending) return;
+    try {
+      await clearPendingTransfer(pending.transferId);
+      await refreshContext();
+      showNotice("Temporary transfer cleared.", "success");
+    } catch (error) { showNotice(errorMessage(error), "error"); }
   }
 
   async function importFile(file: File) {
@@ -168,8 +189,8 @@ export default function App() {
       const imported = parsePassport(JSON.parse(await file.text()));
       setPassport(imported);
       setPreviewOrigin("file");
-      const nextTarget = activeProvider ?? PROVIDERS.find((provider) => provider !== imported.source.provider);
-      if (nextTarget) setTarget(nextTarget);
+      setLimit("all");
+      setTarget((current) => current !== imported.source.provider ? current : PROVIDERS.find((provider) => provider !== imported.source.provider)!);
       showNotice(`Imported ${imported.messages.length} messages from ${file.name}.`, "success");
     } catch (error) {
       showNotice(`Could not import this file: ${errorMessage(error)}`, "error");
@@ -209,7 +230,7 @@ export default function App() {
           </p>
           <div className="button-row">
             <button className="secondary" onClick={copyContext} disabled={busy}>Copy context only</button>
-            <button className="text-button danger" onClick={clearPending}>Clear</button>
+            <button className="text-button danger" onClick={clearPending} disabled={busy}>Clear</button>
           </div>
         </section>
       )}
@@ -220,10 +241,11 @@ export default function App() {
           <div className="eyebrow">Capture</div>
           <h2>Read this conversation</h2>
         </div>
-        <p>ChatPassport only reads the active tab after you click the button.</p>
+        <p>Loads older messages by scrolling the active conversation, collects rendered history, then restores your scroll position. Keep this conversation unchanged during capture.</p>
         <button className="primary" onClick={scanConversation} disabled={busy || !activeProvider}>
-          {busy ? "Working…" : "Preview current conversation"}
+          {busy ? "Working…" : "Capture conversation history"}
         </button>
+        {capturing && <button className="secondary" onClick={() => captureController.current?.abort()}>Stop and keep collected messages</button>}
       </section>
 
       <div className="or-divider"><span>or</span></div>
@@ -257,7 +279,7 @@ export default function App() {
           </dl>
           <p className="warning">
             {previewOrigin === "page"
-              ? "Only messages currently loaded on the page are captured. Older messages may be missing. For long conversations, try scrolling to the top, wait for messages to load, then preview again. A complete history cannot be guaranteed."
+              ? passport.capture?.reason ?? "History completeness has not been verified."
               : "Only messages in this file are included. The original capture may not contain the complete conversation."}
           </p>
           {previewSize > SESSION_WARN_BYTES && (
@@ -293,6 +315,7 @@ export default function App() {
             {PROVIDERS.filter((provider) => provider !== passport.source.provider).map((provider) => (
               <button
                 key={provider}
+                disabled={busy}
                 className={target === provider ? "provider selected" : "provider"}
                 onClick={() => setTarget(provider)}
               >
@@ -301,7 +324,7 @@ export default function App() {
             ))}
           </div>
           <label className="field-label" htmlFor="message-limit">Context range</label>
-          <select id="message-limit" value={limit} onChange={(event) => setLimit(event.target.value as MessageLimit)}>
+          <select id="message-limit" disabled={busy} value={limit} onChange={(event) => setLimit(event.target.value as MessageLimit)}>
             <option value="all">{previewOrigin === "page" ? "All detected messages" : "All imported messages"}</option>
             <option value="100">Latest 100 available messages</option>
             <option value="50">Latest 50 available messages</option>
@@ -311,7 +334,7 @@ export default function App() {
             Import into {PROVIDER_LABELS[target]}
           </button>
           <p className="privacy-note">
-            Opens the destination in standby mode. Context is added only after you type a new question.
+            Opens one destination tab in standby mode. After you click Continue with context, that website can read or sync the inserted draft before Send. ChatPassport never sends it automatically.
           </p>
         </section>
       )}

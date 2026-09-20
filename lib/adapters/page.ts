@@ -1,22 +1,10 @@
 import type { PassportMessage, Provider } from "../passport";
-
 export interface PageExtraction {
   provider: Provider | null;
   title: string;
   url: string;
   messages: PassportMessage[];
   error?: string;
-}
-
-export interface FillResult {
-  success: boolean;
-  code: "filled" | "not-found" | "not-empty" | "changed" | "truncated";
-  message: string;
-}
-
-export interface ComposerSnapshot {
-  found: boolean;
-  text: string;
 }
 
 /**
@@ -121,12 +109,12 @@ export function extractConversationFromPage(): PageExtraction {
       ? element.matches(claudeBodySelector)
         ? element
         : element.querySelector(claudeBodySelector) ?? element
-      : element.querySelector(".markdown, .prose, .message-content, .whitespace-pre-wrap") ?? element;
+      : element.querySelectorAll(".markdown, .prose, .message-content, .whitespace-pre-wrap").length === 1
+        ? element.querySelector(".markdown, .prose, .message-content, .whitespace-pre-wrap")!
+        : element;
     const clone = content.cloneNode(true) as HTMLElement;
 
-    if (provider === "claude") {
-      clone.querySelectorAll('button, [hidden], [aria-hidden="true"], .sr-only').forEach((node) => node.remove());
-    }
+    clone.querySelectorAll('button, [hidden], [aria-hidden="true"], .sr-only').forEach((node) => node.remove());
 
     clone.querySelectorAll("pre").forEach((pre) => {
       const code = pre.textContent?.trim() ?? "";
@@ -147,7 +135,11 @@ export function extractConversationFromPage(): PageExtraction {
 
   const messages = filtered
     .map((candidate, index) => ({
-      id: `${provider}-${index + 1}`,
+      id: candidate.element.getAttribute("data-message-id")
+        ? `dom:${candidate.role}:${candidate.element.getAttribute("data-message-id")}`
+        : candidate.element.closest('[data-message-id]')?.getAttribute('data-message-id')
+          ? `dom:${candidate.role}:${candidate.element.closest('[data-message-id]')!.getAttribute('data-message-id')}`
+          : `position:${provider}-${index + 1}`,
       role: candidate.role,
       content: [{ type: "text" as const, text: richText(candidate.element) }],
     }))
@@ -165,155 +157,5 @@ export function extractConversationFromPage(): PageExtraction {
     ...(messages.length === 0
       ? { error: "No messages were found. Open a conversation and try again." }
       : {}),
-  };
-}
-
-/** Runs inside the active AI page. Must remain self-contained. */
-export function fillComposerOnPage(text: string): FillResult {
-  const selectors = [
-    "#prompt-textarea",
-    'textarea[placeholder*="message" i]',
-    'textarea[placeholder*="ask" i]',
-    'div[contenteditable="true"].ProseMirror',
-    'rich-textarea div[contenteditable="true"]',
-    '.ql-editor[contenteditable="true"]',
-    'div[contenteditable="true"][role="textbox"]',
-    "textarea",
-  ];
-
-  const composer = selectors
-    .map((selector) => document.querySelector<HTMLElement>(selector))
-    .find((element) => element && element.getClientRects().length > 0);
-
-  if (!composer) {
-    return {
-      success: false,
-      code: "not-found",
-      message: "Could not find the message box. Copy the context and paste it manually.",
-    };
-  }
-
-  const existingText = composer instanceof HTMLTextAreaElement || composer instanceof HTMLInputElement
-    ? composer.value
-    : composer.textContent ?? "";
-  if (existingText.trim()) {
-    return {
-      success: false,
-      code: "not-empty",
-      message: "The message box already contains text. Clear it before filling to avoid losing your draft.",
-    };
-  }
-
-  composer.focus();
-  if (composer instanceof HTMLTextAreaElement || composer instanceof HTMLInputElement) {
-    const prototype = composer instanceof HTMLTextAreaElement
-      ? HTMLTextAreaElement.prototype
-      : HTMLInputElement.prototype;
-    const setter = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
-    setter?.call(composer, text);
-  } else {
-    composer.textContent = text;
-  }
-
-  composer.dispatchEvent(new InputEvent("input", {
-    bubbles: true,
-    composed: true,
-    inputType: "insertText",
-    data: text,
-  }));
-  composer.dispatchEvent(new Event("change", { bubbles: true }));
-
-  return {
-    success: true,
-    code: "filled",
-    message: "Conversation context was placed in the message box. Review it before sending.",
-  };
-}
-
-/** Reads the destination editor without changing it. Must remain self-contained. */
-export function readComposerOnPage(): ComposerSnapshot {
-  const selectors = [
-    "#prompt-textarea",
-    'textarea[placeholder*="message" i]',
-    'textarea[placeholder*="ask" i]',
-    'div[contenteditable="true"].ProseMirror',
-    'rich-textarea div[contenteditable="true"]',
-    '.ql-editor[contenteditable="true"]',
-    'div[contenteditable="true"][role="textbox"]',
-    "textarea",
-  ];
-  const composer = selectors
-    .map((selector) => document.querySelector<HTMLElement>(selector))
-    .find((element) => element && element.getClientRects().length > 0);
-  if (!composer) return { found: false, text: "" };
-  const text = composer instanceof HTMLTextAreaElement || composer instanceof HTMLInputElement
-    ? composer.value
-    : composer.textContent ?? "";
-  return { found: true, text };
-}
-
-/** Replaces a known draft and verifies that the entire value was accepted. */
-export function replaceComposerOnPage(text: string, expectedText: string): FillResult {
-  const selectors = [
-    "#prompt-textarea",
-    'textarea[placeholder*="message" i]',
-    'textarea[placeholder*="ask" i]',
-    'div[contenteditable="true"].ProseMirror',
-    'rich-textarea div[contenteditable="true"]',
-    '.ql-editor[contenteditable="true"]',
-    'div[contenteditable="true"][role="textbox"]',
-    "textarea",
-  ];
-  const composer = selectors
-    .map((selector) => document.querySelector<HTMLElement>(selector))
-    .find((element) => element && element.getClientRects().length > 0);
-  if (!composer) {
-    return { success: false, code: "not-found", message: "Could not find the message box." };
-  }
-
-  const read = () => composer instanceof HTMLTextAreaElement || composer instanceof HTMLInputElement
-    ? composer.value
-    : composer.textContent ?? "";
-  const write = (value: string) => {
-    if (composer instanceof HTMLTextAreaElement || composer instanceof HTMLInputElement) {
-      const prototype = composer instanceof HTMLTextAreaElement
-        ? HTMLTextAreaElement.prototype
-        : HTMLInputElement.prototype;
-      Object.getOwnPropertyDescriptor(prototype, "value")?.set?.call(composer, value);
-    } else {
-      composer.textContent = value;
-    }
-    composer.dispatchEvent(new InputEvent("input", {
-      bubbles: true,
-      composed: true,
-      inputType: "insertText",
-      data: value,
-    }));
-    composer.dispatchEvent(new Event("change", { bubbles: true }));
-  };
-
-  if (read() !== expectedText) {
-    return {
-      success: false,
-      code: "changed",
-      message: "The message box changed while the context was being prepared. Nothing was overwritten.",
-    };
-  }
-
-  composer.focus();
-  write(text);
-  if (read() !== text) {
-    write(expectedText);
-    return {
-      success: false,
-      code: "truncated",
-      message: "The platform did not accept the complete context, so your original question was restored.",
-    };
-  }
-
-  return {
-    success: true,
-    code: "filled",
-    message: "Context and your new request are ready. Review them before sending.",
   };
 }

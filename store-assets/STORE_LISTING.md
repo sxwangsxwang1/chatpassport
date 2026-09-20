@@ -1,6 +1,6 @@
 # Chrome Web Store listing copy
 
-Use these fields as the English (`en`) listing for version 0.1.1.
+Use these fields as the English (`en`) listing for version 0.1.2.
 
 ## Product details
 
@@ -24,7 +24,7 @@ English
 
 ChatPassport lets you continue a conversation on another AI assistant without manually rebuilding the context.
 
-Capture the visible text of a conversation on ChatGPT, Claude, Gemini, or DeepSeek, choose a destination, and type the new question you actually want to ask. ChatPassport then combines the selected recent context with that question in the destination editor. You review the completed draft and use the website's own Send button.
+Automatically load and capture the rendered text of a conversation on ChatGPT, Claude, Gemini, or DeepSeek, choose a destination, and type the new question you actually want to ask. ChatPassport then combines the selected recent context with that question in the destination editor. You review the completed draft and use the website's own Send button.
 
 WHY IT IS DIFFERENT
 
@@ -47,11 +47,11 @@ CURRENT LIMITATIONS
 
 ChatPassport transfers text and fenced code blocks. Images, attachments, citations, artifacts, and hidden reasoning are not transferred. Supported websites may change their page structure, so this first release is marked experimental.
 
-Only messages currently loaded on the source page are captured. Older or off-screen messages may be missing from long conversations. The detected count, exported files, and transfers do not guarantee a complete conversation history. Try scrolling to the top, wait for messages to load, then preview again.
+History capture scrolls through the conversation and merges rendered windows, including virtualized messages. You can stop and keep partial results. Capture is bounded to two minutes and a safety size limit. Reaching page boundaries is not proof of complete server history: hidden branches, collapsed content, slow or unsupported loaders may still be absent. Capture status is shown in the preview and included in JSON.
 
 PRIVACY
 
-Conversation processing takes place in the browser. One pending transfer is stored temporarily in Chrome session storage and expires after one hour. ChatPassport does not transmit conversation data to the developer. Content reaches a destination AI service only after you review the draft and manually send it there.
+Conversation processing takes place in the browser. One pending transfer is stored temporarily in Chrome session storage, bound to one destination tab, and becomes inaccessible after one hour. Alarms schedule cleanup; sleeping or stopped browsers may delay deletion until Chrome resumes. Access and worker startup also enforce expiry. ChatPassport does not transmit conversation data to the developer. Once you click Continue with context, the destination website can read or sync the inserted draft before Send. ChatPassport never sends it automatically. Scrolling history may trigger normal requests by the source website.
 
 ## Optional listing URLs
 
@@ -65,7 +65,7 @@ These links work publicly only after the repository is public. If it remains pri
 
 1. Sign in to any supported website and open a conversation containing at least two messages.
 2. Click the ChatPassport toolbar icon to open its side panel.
-3. Click **Preview current conversation**. Confirm the title, source, message count, and size appear.
+3. Click **Capture conversation history**. Confirm the title, source, message count, and size appear.
 4. Select a different supported assistant and click **Import into [destination]**.
 5. On the destination page, confirm the **ChatPassport context is ready** card appears.
 6. Type a short new question in the destination message box, then click **Continue with context** on the ChatPassport card.
@@ -86,7 +86,11 @@ Used after explicit user actions to extract the visible conversation from the ac
 
 **`storage` justification**
 
-Used to hold one pending transfer in `chrome.storage.session` while the user moves between supported websites. The transfer expires after one hour and is removed after completion or when the user clears it.
+Used to hold one pending transfer in `chrome.storage.session` while the user moves between supported websites. The transfer becomes inaccessible after one hour and is removed on completion, manual clearing, or destination-tab closure. Cleanup alarms may be delayed while Chrome is asleep or stopped.
+
+**`alarms` justification**
+
+Used to schedule cleanup of expired pending transfers. Expiry is also checked on every access and worker startup. No browsing, tracking, or periodic network activity is performed by the alarm.
 
 **`sidePanel` justification**
 
