@@ -47,6 +47,7 @@ export default function App() {
   const fileInput = useRef<HTMLInputElement>(null);
   const [activeProvider, setActiveProvider] = useState<Provider | null>(null);
   const [passport, setPassport] = useState<Passport | null>(null);
+  const [previewOrigin, setPreviewOrigin] = useState<"page" | "file">("page");
   const [pending, setPending] = useState<PendingTransfer | null>(null);
   const [target, setTarget] = useState<Provider>("claude");
   const [limit, setLimit] = useState<MessageLimit>("all");
@@ -108,9 +109,10 @@ export default function App() {
     try {
       const extracted = await extractActiveConversation();
       setPassport(extracted);
+      setPreviewOrigin("page");
       const nextTarget = PROVIDERS.find((provider) => provider !== extracted.source.provider);
       if (nextTarget) setTarget(nextTarget);
-      showNotice(`Found ${extracted.messages.length} messages. Nothing has been saved yet.`, "success");
+      showNotice(`Detected ${extracted.messages.length} messages currently loaded on the page. Nothing has been saved yet.`, "success");
     } catch (error) {
       showNotice(errorMessage(error), "error");
     } finally {
@@ -165,6 +167,7 @@ export default function App() {
       if (file.size > 25 * 1024 * 1024) throw new Error("Files larger than 25 MB are not supported.");
       const imported = parsePassport(JSON.parse(await file.text()));
       setPassport(imported);
+      setPreviewOrigin("file");
       const nextTarget = activeProvider ?? PROVIDERS.find((provider) => provider !== imported.source.provider);
       if (nextTarget) setTarget(nextTarget);
       showNotice(`Imported ${imported.messages.length} messages from ${file.name}.`, "success");
@@ -249,9 +252,14 @@ export default function App() {
           </div>
           <dl className="stats">
             <div><dt>Source</dt><dd>{sourceLabel}</dd></div>
-            <div><dt>Messages</dt><dd>{passport.messages.length}</dd></div>
+            <div><dt>{previewOrigin === "page" ? "Detected" : "Imported"}</dt><dd>{passport.messages.length}</dd></div>
             <div><dt>Size</dt><dd>{formatBytes(previewSize)}</dd></div>
           </dl>
+          <p className="warning">
+            {previewOrigin === "page"
+              ? "Only messages currently loaded on the page are captured. Older messages may be missing. For long conversations, try scrolling to the top, wait for messages to load, then preview again. A complete history cannot be guaranteed."
+              : "Only messages in this file are included. The original capture may not contain the complete conversation."}
+          </p>
           {previewSize > SESSION_WARN_BYTES && (
             <p className="warning">
               This is a large conversation. Use a recent-message limit or save it as a file.
@@ -294,10 +302,10 @@ export default function App() {
           </div>
           <label className="field-label" htmlFor="message-limit">Context range</label>
           <select id="message-limit" value={limit} onChange={(event) => setLimit(event.target.value as MessageLimit)}>
-            <option value="all">Entire conversation</option>
-            <option value="100">Latest 100 messages</option>
-            <option value="50">Latest 50 messages</option>
-            <option value="20">Latest 20 messages</option>
+            <option value="all">{previewOrigin === "page" ? "All detected messages" : "All imported messages"}</option>
+            <option value="100">Latest 100 available messages</option>
+            <option value="50">Latest 50 available messages</option>
+            <option value="20">Latest 20 available messages</option>
           </select>
           <button className="primary" onClick={prepareTransfer} disabled={busy || transferableSize > SESSION_MAX_BYTES}>
             Import into {PROVIDER_LABELS[target]}

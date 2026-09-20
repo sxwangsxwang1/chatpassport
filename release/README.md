@@ -7,3 +7,5 @@ pnpm release:chrome
 ```
 
 The generated `chatpassport-<version>-chrome.zip` file is intentionally ignored by Git. Upload that ZIP—not the repository root—to the Chrome Web Store Developer Dashboard.
+
+For the 0.1.1 update, see [Chrome 商店更新流程（中文）](UPDATE-0.1.1.zh-CN.md).

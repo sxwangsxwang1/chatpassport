@@ -86,6 +86,7 @@ export function extractConversationFromPage(): PageExtraction {
   if (provider === "claude") {
     add('[data-testid="user-message"]', "user");
     add('[data-testid="assistant-message"]', "assistant");
+    add(".font-claude-response", "assistant");
     add(".font-claude-message", "assistant");
   } else if (provider === "gemini") {
     add("user-query", "user");
@@ -113,9 +114,19 @@ export function extractConversationFromPage(): PageExtraction {
   });
 
   function richText(element: Element): string {
-    const content =
-      element.querySelector(".markdown, .prose, .message-content, .whitespace-pre-wrap") ?? element;
+    // Claude responses can contain several separately rendered Markdown blocks.
+    // Select the message body, rather than just its first .prose descendant.
+    const claudeBodySelector = '[data-testid="user-message"], .font-claude-response, .font-claude-message';
+    const content = provider === "claude"
+      ? element.matches(claudeBodySelector)
+        ? element
+        : element.querySelector(claudeBodySelector) ?? element
+      : element.querySelector(".markdown, .prose, .message-content, .whitespace-pre-wrap") ?? element;
     const clone = content.cloneNode(true) as HTMLElement;
+
+    if (provider === "claude") {
+      clone.querySelectorAll('button, [hidden], [aria-hidden="true"], .sr-only').forEach((node) => node.remove());
+    }
 
     clone.querySelectorAll("pre").forEach((pre) => {
       const code = pre.textContent?.trim() ?? "";

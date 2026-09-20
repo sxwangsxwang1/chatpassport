@@ -1,6 +1,6 @@
 # Chrome Web Store listing copy
 
-Use these fields as the English (`en`) listing for version 0.1.0.
+Use these fields as the English (`en`) listing for version 0.1.1.
 
 ## Product details
 
@@ -46,6 +46,8 @@ SUPPORTED WEBSITES
 CURRENT LIMITATIONS
 
 ChatPassport transfers text and fenced code blocks. Images, attachments, citations, artifacts, and hidden reasoning are not transferred. Supported websites may change their page structure, so this first release is marked experimental.
+
+Only messages currently loaded on the source page are captured. Older or off-screen messages may be missing from long conversations. The detected count, exported files, and transfers do not guarantee a complete conversation history. Try scrolling to the top, wait for messages to load, then preview again.
 
 PRIVACY
 

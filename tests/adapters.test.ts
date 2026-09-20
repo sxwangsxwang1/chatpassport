@@ -81,6 +81,63 @@ describe("page adapters", () => {
     expect(result.messages.map((message) => message.role)).toEqual(["user", "assistant"]);
   });
 
+  it.each(["font-claude-response", "font-claude-message"])(
+    "captures Claude %s bodies including every Markdown block in order",
+    (bodyClass) => {
+      // Synthetic compatibility fixture; no personal conversation data.
+      const result = extract(`
+        <div data-testid="user-message"><p>Review this</p></div>
+        <div class="${bodyClass}">
+          <div class="standard-markdown prose"><p>First finding.</p></div>
+          <div class="progressive-markdown prose"><p>Second finding.</p><pre><code>pnpm test</code></pre></div>
+        </div>
+        <div data-testid="user-message"><p>What next?</p></div>
+        <div class="${bodyClass}"><p>Ship the fix.</p></div>
+      `, "https://claude.ai/chat/test", "Review - Claude");
+
+      expect(result.messages.map((message) => message.role)).toEqual(["user", "assistant", "user", "assistant"]);
+      expect(result.messages[1]?.content[0]?.text).toMatch(/^First finding\.\s+Second finding\.\s+```\npnpm test\n```$/);
+      expect(result.messages[3]?.content[0]?.text).toBe("Ship the fix.");
+    },
+  );
+
+  it("deduplicates nested Claude role, test-id and body selectors without exporting controls", () => {
+    const result = extract(`
+      <article data-message-author-role="user">
+        <h2 class="sr-only">You said:</h2>
+        <div data-testid="user-message"><p>Review this</p></div>
+      </article>
+      <article data-message-author-role="assistant" data-testid="assistant-message">
+        <h2 class="sr-only">Claude responded:</h2>
+        <div class="font-claude-response font-claude-message">
+          <p>Keep this answer.</p>
+          <button>Copy</button><span aria-hidden="true">Decoration</span>
+          <span hidden>Hidden text</span><span class="sr-only">Read aloud</span>
+        </div>
+        <button>Retry</button>
+      </article>
+    `, "https://claude.ai/chat/test", "Review - Claude");
+
+    expect(result.messages.map((message) => ({ role: message.role, text: message.content[0]?.text }))).toEqual([
+      { role: "user", text: "Review this" },
+      { role: "assistant", text: "Keep this answer." },
+    ]);
+  });
+
+  it("keeps all Claude legacy test-id content when no font body marker exists", () => {
+    const result = extract(`
+      <div data-testid="assistant-message">
+        <h2 class="sr-only">Claude responded:</h2>
+        <div class="prose"><p>First section.</p></div>
+        <div class="prose"><p>Last section.</p></div>
+        <button>Copy</button>
+      </div>
+    `, "https://claude.ai/chat/test", "Review - Claude");
+
+    expect(result.messages).toHaveLength(1);
+    expect(result.messages[0]?.content[0]?.text).toMatch(/^First section\.\s+Last section\.$/);
+  });
+
   it("extracts Gemini custom elements", () => {
     const result = extract(`
       <user-query><p>Explain this</p></user-query>

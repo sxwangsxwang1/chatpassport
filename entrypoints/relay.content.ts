@@ -205,7 +205,7 @@ async function finishComposerReplacement(
   elements.heading.textContent = "Continuation is ready";
   elements.detail.textContent = composed.omittedMessageCount > 0
     ? `${composed.includedMessageCount} recent messages were added; ${composed.omittedMessageCount} older messages were omitted to stay within the safe size. Review the message, then click ${PROVIDER_LABELS[relay.target]}'s Send button.`
-    : `All ${composed.includedMessageCount} messages and your new request were added completely. Review the message, then click ${PROVIDER_LABELS[relay.target]}'s Send button.`;
+    : `All ${composed.includedMessageCount} selected messages and your new request were added. This does not verify that the source history was complete. Review the message, then click ${PROVIDER_LABELS[relay.target]}'s Send button.`;
   elements.feedback.hidden = true;
   elements.continueButton.remove();
 

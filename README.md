@@ -95,14 +95,16 @@ Click the ChatPassport toolbar icon to open the side panel, then select **Previe
 
 ChatPassport displays the conversation title, source, message count, and approximate size. Nothing is stored for transfer until you prepare one.
 
+Only messages currently loaded on the page can be detected. Long conversations may load older messages on demand or remove off-screen messages, so the detected count is not a guarantee of complete history. Try scrolling to the top, wait for messages to load, then preview again. Exported files contain the same captured messages and may also be incomplete.
+
 ### 3. Choose the amount of context
 
 Choose one of the available ranges:
 
-- Entire conversation
-- Latest 100 messages
-- Latest 50 messages
-- Latest 20 messages
+- All detected messages (or all imported messages for a file)
+- Latest 100 available messages
+- Latest 50 available messages
+- Latest 20 available messages
 
 For long conversations, a recent-message range usually gives the destination assistant more room to answer the new request.
 
@@ -135,7 +137,7 @@ Browser storage capacity and an AI model's usable context window are different l
 - Temporary transfers warn above 6 MB and are rejected above 9 MB.
 - Continuation drafts use a conservative 48,000-character budget with space reserved for the new request.
 
-When the complete conversation does not fit, ChatPassport keeps the newest complete messages and reports how many older messages were omitted. It does not silently cut a message in half.
+When the selected messages do not fit, ChatPassport keeps the newest complete messages from that selection and reports how many older messages were omitted. It does not silently cut a message in half. This size check cannot detect messages that were never loaded or captured from the source page.
 
 If the destination website changes or truncates the inserted content, ChatPassport reports the problem and restores the user's original question when possible.
 
@@ -194,7 +196,7 @@ chat.deepseek.com
 
 ### The context is too large
 
-Choose the latest 20, 50, or 100 messages. Export the full conversation as JSON or Markdown when you need a complete archive.
+Choose the latest 20, 50, or 100 available messages. Export the captured messages as JSON or Markdown to avoid the continuation draft size limit. Exporting does not recover messages missing from the original capture.
 
 ### Chrome says `manifest.json` is missing
 
