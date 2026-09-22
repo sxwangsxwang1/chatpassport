@@ -12,6 +12,22 @@ function extract(html: string, url: string, title: string): PageExtraction {
 }
 
 describe("page adapters", () => {
+  it.each([
+    'text = """a\n\n\nb"""\nprint(text)',
+    '\n    first()  \n\tsecond()\n\n',
+    'value = "a\u00a0b"\n',
+    '```md\ninside a fence\n```',
+  ])('preserves exact code whitespace and nested fences: %s', (code) => {
+    const dom = new JSDOM('<article data-message-author-role="assistant"><div class="markdown"><p>Before</p><pre></pre><p>After</p></div></article>', { url: 'https://chatgpt.com/c/code', runScripts: 'outside-only' });
+    dom.window.document.querySelector('pre')!.textContent = code;
+    const result = dom.window.eval(`(${extractConversationFromPage.toString()})()`) as PageExtraction;
+    const content = result.messages[0]!.content[0]!.text;
+    expect(content).toContain(`\n${code}\n`);
+    expect(content).toContain('Before');
+    expect(content).toContain('After');
+    if (code.includes('```')) expect(content).toContain(`\`\`\`\`\n${code}\n\`\`\`\``);
+    dom.window.close();
+  });
   it("extracts ChatGPT role attributes", () => {
     const result = extract(`
       <main>

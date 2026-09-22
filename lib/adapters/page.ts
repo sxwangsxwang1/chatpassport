@@ -4,6 +4,8 @@ export interface PageExtraction {
   title: string;
   url: string;
   messages: PassportMessage[];
+  /** Capture-only evidence; not exported as conversation content. */
+  observation?: string;
   error?: string;
 }
 
@@ -116,21 +118,30 @@ export function extractConversationFromPage(): PageExtraction {
 
     clone.querySelectorAll('button, [hidden], [aria-hidden="true"], .sr-only').forEach((node) => node.remove());
 
+    // Keep code out of prose whitespace normalization. A longer fence also
+    // preserves code that itself contains Markdown backticks.
+    const codeBlocks: string[] = [];
+    let marker = '\uE000CODE';
+    while ((clone.textContent ?? '').includes(marker)) marker += 'X';
     clone.querySelectorAll("pre").forEach((pre) => {
-      const code = pre.textContent?.trim() ?? "";
-      const replacement = document.createTextNode(`\n\`\`\`\n${code}\n\`\`\`\n`);
-      pre.replaceWith(replacement);
+      const code = pre.textContent ?? "";
+      let longest = 0;
+      for (const match of code.matchAll(/`+/g)) longest = Math.max(longest, match[0].length);
+      const fence = '`'.repeat(Math.max(3, longest + 1));
+      const index = codeBlocks.push(`${fence}\n${code}\n${fence}`) - 1;
+      pre.replaceWith(document.createTextNode(`\n${marker}${index}\uE001\n`));
     });
     clone.querySelectorAll("br").forEach((br) => br.replaceWith(document.createTextNode("\n")));
     clone.querySelectorAll("p, li, blockquote, h1, h2, h3, h4, h5, h6").forEach((block) => {
       block.append(document.createTextNode("\n"));
     });
 
-    return (clone.textContent ?? "")
+    const prose = (clone.textContent ?? "")
       .replace(/\u00a0/g, " ")
       .replace(/[ \t]+\n/g, "\n")
       .replace(/\n{3,}/g, "\n\n")
       .trim();
+    return prose.replace(new RegExp(`${marker}(\\d+)\uE001`, 'g'), (_, index: string) => codeBlocks[Number(index)]!);
   }
 
   const messages = filtered
@@ -149,11 +160,28 @@ export function extractConversationFromPage(): PageExtraction {
     .replace(/\s*[|\-]\s*(ChatGPT|Claude|Gemini|DeepSeek).*$/i, "")
     .trim();
 
+  // Node identity plus content-space position distinguishes a genuinely new
+  // virtualized window from scrolling over an unchanged, fully rendered DOM.
+  const state = globalThis as typeof globalThis & {
+    __chatpassportObservations?: { url: string; nodes: WeakMap<Element, number>; next: number };
+  };
+  if (state.__chatpassportObservations?.url !== location.href) {
+    state.__chatpassportObservations = { url: location.href, nodes: new WeakMap(), next: 0 };
+  }
+  const observations = state.__chatpassportObservations!;
+  const observation = JSON.stringify(filtered.map(({ element }) => {
+    if (!observations.nodes.has(element)) observations.nodes.set(element, ++observations.next);
+    let offset = element.getBoundingClientRect().top;
+    for (let parent = element.parentElement; parent; parent = parent.parentElement) offset += parent.scrollTop;
+    return [observations.nodes.get(element), Math.round(offset)];
+  }));
+
   return {
     provider,
     title: rawTitle || `${provider} conversation`,
     url: location.href,
     messages,
+    observation,
     ...(messages.length === 0
       ? { error: "No messages were found. Open a conversation and try again." }
       : {}),

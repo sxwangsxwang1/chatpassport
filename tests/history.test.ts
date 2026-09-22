@@ -1,7 +1,7 @@
 import { JSDOM } from 'jsdom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mergeHistory } from '../lib/history';
-import type { PassportMessage } from '../lib/passport';
+import { PASSPORT_MAX_BYTES, parsePassport, serializePassport, type PassportMessage } from '../lib/passport';
 
 const mocks = vi.hoisted(() => ({ query: vi.fn(), executeScript: vi.fn() }));
 vi.mock('wxt/browser', () => ({ browser: { tabs: { query: mocks.query }, scripting: { executeScript: mocks.executeScript } } }));
@@ -11,6 +11,12 @@ const message = (id: number, text = String(id)): PassportMessage => ({ id: `dom:
 afterEach(() => { vi.useRealTimers(); vi.clearAllMocks(); });
 
 describe('history window alignment', () => {
+  it('keeps identical unanchored windows instead of mistaking repeated messages for the same turn', () => {
+    const window = ['Continue', 'OK'].map((text, index) => ({ ...message(index, text), id: `position:${index}` }));
+    const merged = mergeHistory(window, window, 'up', true);
+    expect(merged.messages).toHaveLength(4);
+    expect(merged.gap).toBe(true);
+  });
   it('merges overlapping windows in either direction', () => {
     const a = [1, 2, 3].map((id) => message(id));
     expect(mergeHistory(a, [3, 4, 5].map((id) => message(id)), 'down').messages.map((m) => m.id))
@@ -37,15 +43,26 @@ describe('history window alignment', () => {
   });
 });
 
-function virtualPage(lazy = false) {
+function virtualPage(lazy = false, repeated = false, recycled = false, staticDom = false) {
   const dom = new JSDOM('<main style="overflow-y:auto"></main>', { url: 'https://chatgpt.com/c/test', runScripts: 'outside-only' });
   const area = dom.window.document.querySelector('main')!;
   let top = lazy ? 300 : 1800;
   let loadedStart = lazy ? 30 : 0;
   const height = () => (40 - loadedStart) * 50;
   const render = () => {
+    if (staticDom && area.children.length) return;
     const start = Math.max(loadedStart, loadedStart + Math.floor(top / 50) - 1);
     const end = Math.min(40, start + 7);
+    if (repeated) {
+      const first = staticDom ? 0 : Math.min(36, Math.floor(top / 100) * 2);
+      const count = staticDom ? 40 : 4;
+      if (!recycled || !area.children.length) area.innerHTML = Array.from({ length: count }, (_, i) =>
+        `<article data-message-author-role="${i % 2 ? 'assistant' : 'user'}"><p>${i % 2 ? 'OK' : 'Continue'}</p></article>`).join('');
+      Array.from(area.children).forEach((element, index) => {
+        element.getBoundingClientRect = () => ({ top: (first + index) * 50 - top }) as DOMRect;
+      });
+      return;
+    }
     area.innerHTML = Array.from({ length: end - start }, (_, i) => {
       const index = start + i;
       return `<article data-message-id="m${index}" data-message-author-role="${index % 2 ? 'assistant' : 'user'}"><p>${index % 4 === 0 ? 'Repeated question' : `Message ${index}`}</p></article>`;
@@ -75,6 +92,51 @@ function virtualPage(lazy = false) {
 }
 
 describe('history capture integration', () => {
+  it('enforces the file byte budget in the capture pipeline and restores scrolling', async () => {
+    mocks.query.mockResolvedValue([{ id: 7, url: 'https://chatgpt.com/c/large' }]);
+    mocks.executeScript.mockImplementation(async ({ args }: { args?: string[] }) => [{ result: args
+      ? { top: 0, height: 200, viewport: 200, boundary: true }
+      : { provider: 'chatgpt', title: 'Large', url: 'https://chatgpt.com/c/large', messages: [0, 1, 2].map((id) => message(id, '中'.repeat(3_000_000))) },
+    }]);
+    const result = await extractActiveConversation();
+    expect(result.messages).toHaveLength(2);
+    expect(result.capture?.status).toBe('partial');
+    expect(result.capture?.reason).toContain('UTF-8');
+    const json = serializePassport(result);
+    expect(new TextEncoder().encode(json).byteLength).toBeLessThanOrEqual(PASSPORT_MAX_BYTES);
+    expect(parsePassport(JSON.parse(json)).messages).toEqual(result.messages);
+    expect(mocks.executeScript.mock.calls.some(([call]) => call.args?.[0] === 'restore')).toBe(true);
+  });
+  it('rejects an individually oversized message and still restores the page', async () => {
+    mocks.query.mockResolvedValue([{ id: 7, url: 'https://chatgpt.com/c/large' }]);
+    mocks.executeScript.mockImplementation(async ({ args }: { args?: string[] }) => [{ result: args
+      ? { top: 0, height: 200, viewport: 200, boundary: true }
+      : { provider: 'chatgpt', title: 'Large', url: 'https://chatgpt.com/c/large', messages: [message(1, '中'.repeat(9_000_000))] },
+    }]);
+    await expect(extractActiveConversation()).rejects.toThrow('No message was truncated');
+    expect(mocks.executeScript.mock.calls.some(([call]) => call.args?.[0] === 'restore')).toBe(true);
+  });
+  it.each([false, true])('retains repeated ID-less virtual windows and flags uncertainty, recycled nodes=%s', async (recycled) => {
+    vi.useFakeTimers();
+    const { dom } = virtualPage(false, true, recycled);
+    const promise = extractActiveConversation();
+    await vi.advanceTimersByTimeAsync(119_000);
+    const result = await promise;
+    expect(result.messages.length).toBeGreaterThanOrEqual(40);
+    expect(result.capture?.status).toBe('partial');
+    expect(result.capture?.reason).toContain('duplicates');
+    dom.window.close();
+  });
+  it('does not duplicate a fully rendered static conversation when scrolling', async () => {
+    vi.useFakeTimers();
+    const { dom } = virtualPage(false, true, false, true);
+    const promise = extractActiveConversation();
+    await vi.advanceTimersByTimeAsync(119_000);
+    const result = await promise;
+    expect(result.messages).toHaveLength(40);
+    expect(result.capture?.status).toBe('page-history');
+    dom.window.close();
+  });
   it.each([false, true])('collects all 40 virtualized messages, lazy loading=%s', async (lazy) => {
     vi.useFakeTimers();
     const { area, original } = virtualPage(lazy);

@@ -37,15 +37,52 @@ export const passportSchema = z.object({
 
 export type Passport = z.infer<typeof passportSchema>;
 export type PassportMessage = z.infer<typeof messageSchema>;
+export const PASSPORT_MAX_BYTES = 25 * 1024 * 1024;
+
+function encodePassport(passport: Passport): string {
+  return `${JSON.stringify(passport, null, 2)}\n`;
+}
+
+function checkFileSize(serialized: string): void {
+  if (new TextEncoder().encode(serialized).byteLength > PASSPORT_MAX_BYTES) {
+    throw new Error("The normalized JSON exceeds the 25 MiB file limit. Use a smaller conversation or split the file.");
+  }
+}
 
 export function parsePassport(input: unknown): Passport {
-  return passportSchema.parse(input);
+  const passport = passportSchema.parse(input);
+  checkFileSize(encodePassport(passport));
+  return passport;
 }
 
 export function serializePassport(passport: Passport): string {
-  return `${JSON.stringify(passportSchema.parse(passport), null, 2)}\n`;
+  const serialized = encodePassport(passportSchema.parse(passport));
+  checkFileSize(serialized);
+  return serialized;
 }
 
 export function passportSize(passport: Passport): number {
-  return new TextEncoder().encode(serializePassport(passport)).byteLength;
+  return new TextEncoder().encode(encodePassport(passport)).byteLength;
+}
+
+/** Keep complete messages, including JSON formatting and metadata in the budget. */
+export function fitCapturedPassport(passport: Passport, maxBytes = PASSPORT_MAX_BYTES): Passport {
+  if (passportSize(passport) <= maxBytes) return passport;
+  const sizeReason = 'The UTF-8 JSON file limit was reached. Only the collected messages that fit are included; later messages were omitted without cutting any message.';
+  const previousReason = passport.capture?.status === 'partial' ? passport.capture.reason : '';
+  const capture = {
+    method: 'scroll' as const, status: 'partial' as const,
+    reason: previousReason.startsWith(sizeReason) ? previousReason : sizeReason + (previousReason ? ` ${previousReason}` : ''),
+  };
+  let low = 1;
+  let high = passport.messages.length;
+  let best: Passport | undefined;
+  while (low <= high) {
+    const count = Math.floor((low + high) / 2);
+    const candidate: Passport = { ...passport, capture, messages: passport.messages.slice(0, count) };
+    if (passportSize(candidate) <= maxBytes) { best = candidate; low = count + 1; }
+    else high = count - 1;
+  }
+  if (!best) throw new Error('A collected message is too large for a re-importable JSON file. No message was truncated. Use a smaller conversation.');
+  return best;
 }

@@ -26,13 +26,20 @@ export default defineBackground(() => {
     }).catch(console.error);
   });
 
-  browser.runtime.onMessage.addListener((message: unknown, sender) => {
+  browser.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {
+    // Literal true + callback works on Chrome versions that cannot await a
+    // returned Promise. Never make this listener itself async.
+    const respond = (operation: () => Promise<unknown>): true => {
+      void serial(operation).then(sendResponse, () => sendResponse({ status: 'error', ok: false, code: 'internal-error', error: 'Transfer failed.', message: 'The extension could not complete this transfer. Try again.' }))
+        .catch(() => undefined); // The requesting tab/panel may have closed.
+      return true;
+    };
     if (sender.id !== browser.runtime.id) return undefined;
     if (message && typeof message === "object" && "type" in message && message.type === PENDING_COMMAND) {
       // Only the extension side panel may create, read raw data or clear transfers.
       if (sender.url !== browser.runtime.getURL("/sidepanel.html") || sender.tab) return undefined;
       const command = message as Record<string, unknown>;
-      return serial(async () => {
+      return respond(async () => {
         try {
           if (command.action === "save") return { ok: true, pending: await createPending(command.passport, command.target) };
           const pending = await readPending();
@@ -49,7 +56,7 @@ export default defineBackground(() => {
     }
     if (!isRelayRequest(message)) return undefined;
     const identity = { url: sender.url ?? "", tabUrl: sender.tab?.url ?? "", tabId: sender.tab?.id ?? -1, frameId: sender.frameId ?? -1 };
-    return serial(async () => {
+    return respond(async () => {
       const pending = await readPending();
       if (message.type === GET_PENDING_RELAY) return createRelayResponse(pending, identity);
       if (message.type === COMPOSE_PENDING_RELAY) return composeRelayResponse(pending, message.transferId, message.currentRequest, identity);

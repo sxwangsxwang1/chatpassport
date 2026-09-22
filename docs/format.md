@@ -47,6 +47,13 @@ A ChatPassport file is UTF-8 JSON with a `.chatpassport.json` suffix. Version
 Unknown versions must be rejected instead of silently reinterpreted. Future
 format releases will provide explicit migrations.
 
+Capture, export and import share a 25 MiB UTF-8 limit for the complete normalized,
+pretty-printed JSON (including metadata and trailing newline). Import checks both
+the input file size and the normalized output size. Capture keeps only whole
+messages that fit and marks size-limited results as partial; an individually
+oversized message is not silently truncated. Files produced within this budget
+can be re-imported. Older oversized files must be split first.
+
 ## Security
 
 Version 1.0 also accepts optional `capture` metadata: `method: "scroll"`,

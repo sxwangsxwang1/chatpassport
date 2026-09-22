@@ -18,6 +18,7 @@ import {
 } from "../../lib/pending";
 import {
   parsePassport,
+  PASSPORT_MAX_BYTES,
   passportSize,
   PROVIDERS,
   serializePassport,
@@ -185,7 +186,7 @@ export default function App() {
   async function importFile(file: File) {
     setBusy(true);
     try {
-      if (file.size > 25 * 1024 * 1024) throw new Error("Files larger than 25 MB are not supported.");
+      if (file.size > PASSPORT_MAX_BYTES) throw new Error("Files larger than 25 MiB are not supported.");
       const imported = parsePassport(JSON.parse(await file.text()));
       setPassport(imported);
       setPreviewOrigin("file");

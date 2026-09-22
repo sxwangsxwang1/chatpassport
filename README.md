@@ -95,7 +95,7 @@ Click the ChatPassport toolbar icon to open the side panel, then select **Captur
 
 ChatPassport displays the conversation title, source, message count, and approximate size. Nothing is stored for transfer until you prepare one.
 
-ChatPassport automatically scrolls backward and forward through the conversation, loading older messages and merging overlapping rendered windows, including virtualized lists. It restores your reading position afterward. You can stop and keep collected messages; capture also stops after two minutes or at its safety size limit. The preview and JSON record whether page boundaries were reached or capture is partial. This is not proof of complete server history: hidden branches, collapsed content, slow or unsupported loaders may still be absent. Do not navigate or edit the conversation during capture.
+ChatPassport automatically scrolls backward and forward through the conversation, loading older messages and merging overlapping rendered windows, including virtualized lists. It restores your reading position afterward. You can stop and keep collected messages; capture also stops after two minutes or at its safety size limit. The preview and JSON record whether page boundaries were reached or capture is partial. If repeated virtual windows cannot be matched reliably without stable message IDs, they are retained and explicitly flagged as potentially duplicated or incomplete. This is not proof of complete server history: hidden branches, collapsed content, slow or unsupported loaders may still be absent. Do not navigate or edit the conversation during capture.
 
 ### 3. Choose the amount of context
 
@@ -151,6 +151,8 @@ If the destination website changes or truncates the inserted content, ChatPasspo
 To export, preview a conversation and select **Save JSON** or **Save Markdown**. The file is saved through Chrome's normal download flow.
 
 To import, open the ChatPassport side panel, select **Import a .chatpassport.json file**, and choose an exported file from your computer. The file is read locally.
+
+JSON capture, export and import share a 25 MiB UTF-8 budget, including formatting and metadata. When capture exceeds this budget, only complete messages that fit are retained and the result is marked partial. A single message that cannot fit is rejected explicitly, not cut in half. Imported files must also fit after normalization. Code blocks preserve their original whitespace, including indentation and blank lines.
 
 The JSON structure is documented in [docs/format.md](docs/format.md).
 

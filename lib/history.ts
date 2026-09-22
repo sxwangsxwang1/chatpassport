@@ -5,9 +5,12 @@ const same = (a: PassportMessage, b: PassportMessage) => a.role === b.role && (
 );
 
 /** Align overlapping DOM windows, not a Set of text (repeated messages are valid). */
-export function mergeHistory(existing: PassportMessage[], incoming: PassportMessage[], direction: 'up' | 'down') {
+export function mergeHistory(existing: PassportMessage[], incoming: PassportMessage[], direction: 'up' | 'down', unanchoredRepeat = false) {
   if (!existing.length) return { messages: incoming.slice(), gap: false };
   if (!incoming.length) return { messages: existing, gap: false };
+  if (unanchoredRepeat) {
+    return { messages: direction === 'up' ? [...incoming, ...existing] : [...existing, ...incoming], gap: true };
+  }
   let best = 0;
   let offsets: number[] = [];
   for (let offset = -incoming.length + 1; offset < existing.length; offset++) {
