@@ -54,8 +54,15 @@ export function scrollHistoryOnPage(action: 'start' | 'up' | 'down' | 'restore',
     if (state.__chatpassportScroll && Date.now() >= state.__chatpassportScroll.expiresAt) release(state.__chatpassportScroll);
     if (state.__chatpassportScroll) throw new Error('Another history capture is running on this page.');
     if (location.href !== expectedUrl) throw new Error('The conversation changed during capture.');
+    // Keep these markers aligned with extractConversationFromPage. Missing a
+    // supported marker makes us scroll the document instead of its inner list.
     const anchors = Array.from(document.querySelectorAll(
-      '[data-message-author-role], [data-role="user"], [data-role="assistant"], [data-testid="user-message"], .font-claude-response, .font-claude-message, user-query, model-response, [class*="user-message"], [class*="assistant-message"]',
+      '[data-message-author-role], [data-role], [data-author], '
+      + '[data-testid="user-message"], [data-testid="assistant-message"], '
+      + '.font-claude-response, .font-claude-message, '
+      + 'user-query, model-response, [data-test-id="user-query"], [data-test-id="model-response"], '
+      + '[class*="user-message"], [class*="assistant-message"], '
+      + '[class*="message_user"], [class*="message_assistant"]',
     ));
     const scores = new Map<HTMLElement, number>();
     for (const anchor of anchors) {

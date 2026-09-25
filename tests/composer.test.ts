@@ -19,6 +19,7 @@ describe('draft preservation', () => {
     ['<p>first</p><p><br></p><p>last</p>', 'first\n\nlast'],
     ['<div>first</div><div>second<br>third</div>', 'first\nsecond\nthird'],
     ['<pre>  x\n    y\n</pre>', '  x\n    y\n'],
+    ['<p>value = "a&nbsp;b"</p>', 'value = "a\u00a0b"'],
   ])('preserves multiline rich text: %s', (html, expected) => {
     const { tools, element } = setup(`<div contenteditable="true" role="textbox">${html}</div>`);
     expect(tools.read(element)).toBe(expected);
@@ -35,6 +36,14 @@ describe('draft preservation', () => {
     const transaction = begin()!;
     expect(await transaction.replace('Context\n\nMy question')).toMatchObject({ success: true });
     expect(tools.read(element)).toBe('Context\n\nMy question');
+    transaction.dispose();
+  });
+  it('verifies code containing a nonbreaking space in a rich editor', async () => {
+    const { begin, tools, element } = setup('<div contenteditable="true" role="textbox"><p>My question</p></div>');
+    const transaction = begin()!;
+    const combined = '```\nvalue = "a\u00a0b"\n```\nMy question';
+    expect(await transaction.replace(combined)).toMatchObject({ success: true });
+    expect(tools.read(element)).toBe(combined);
     transaction.dispose();
   });
   it('does not overwrite edits made while awaiting composition', async () => {

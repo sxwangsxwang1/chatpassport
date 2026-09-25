@@ -91,7 +91,70 @@ function virtualPage(lazy = false, repeated = false, recycled = false, staticDom
   return { dom, area, original: top };
 }
 
+function providerMarkerPage(provider: 'deepseek' | 'gemini', marker: 'class' | 'data-test-id' | 'element') {
+  const url = provider === 'deepseek'
+    ? 'https://chat.deepseek.com/a/chat/s/test'
+    : 'https://gemini.google.com/app/test';
+  const dom = new JSDOM('<main style="overflow-y:auto"></main>', { url, runScripts: 'outside-only' });
+  const area = dom.window.document.querySelector('main')!;
+  const root = dom.window.document.documentElement;
+  let top = 1800;
+  let furthest = top;
+  const row = (index: number) => {
+    const role = index % 2 === 0 ? 'user' : 'assistant';
+    if (provider === 'deepseek') return `<div data-message-id="m${index}" class="message_${role}"><p>Message ${index}</p></div>`;
+    const tag = role === 'user' ? 'user-query' : 'model-response';
+    return marker === 'element'
+      ? `<${tag} data-message-id="m${index}"><p>Message ${index}</p></${tag}>`
+      : `<div data-message-id="m${index}" data-test-id="${tag}"><p>Message ${index}</p></div>`;
+  };
+  const render = () => {
+    const start = Math.max(0, Math.min(34, Math.floor(top / 50) - 1));
+    area.innerHTML = Array.from({ length: 6 }, (_, index) => row(start + index)).join('');
+  };
+  Object.defineProperty(dom.window.document, 'scrollingElement', { value: root });
+  Object.defineProperties(root, {
+    clientHeight: { get: () => 800 }, scrollHeight: { get: () => 800 },
+    scrollTop: { get: () => 0, set: () => undefined },
+  });
+  Object.defineProperties(area, {
+    clientHeight: { get: () => 200 }, scrollHeight: { get: () => 2000 },
+    scrollTop: {
+      get: () => top,
+      set: (value: number) => {
+        top = Math.max(0, Math.min(1800, value));
+        furthest = Math.min(furthest, top);
+        render();
+      },
+    },
+  });
+  render();
+  mocks.query.mockResolvedValue([{ id: 7, url }]);
+  mocks.executeScript.mockImplementation(async ({ func, args = [] }: { func: (...args: never[]) => unknown; args?: unknown[] }) => {
+    const callable = dom.window.eval(`(${func.toString()})`) as (...args: unknown[]) => unknown;
+    return [{ result: await callable(...args) }];
+  });
+  return { dom, area, original: top, furthest: () => furthest };
+}
+
 describe('history capture integration', () => {
+  it.each([
+    ['deepseek', 'class'],
+    ['gemini', 'data-test-id'],
+    ['gemini', 'element'],
+  ] as const)('scrolls the actual %s conversation for %s markers', async (provider, marker) => {
+    vi.useFakeTimers();
+    const { dom, area, original, furthest } = providerMarkerPage(provider, marker);
+    const capture = extractActiveConversation();
+    await vi.advanceTimersByTimeAsync(119_000);
+    const passport = await capture;
+    expect(furthest()).toBe(0);
+    expect(passport.messages.map((message) => message.content[0]?.text))
+      .toEqual(Array.from({ length: 40 }, (_, index) => `Message ${index}`));
+    expect(passport.capture?.status).toBe('page-history');
+    expect(area.scrollTop).toBe(original);
+    dom.window.close();
+  });
   it('enforces the file byte budget in the capture pipeline and restores scrolling', async () => {
     mocks.query.mockResolvedValue([{ id: 7, url: 'https://chatgpt.com/c/large' }]);
     mocks.executeScript.mockImplementation(async ({ args }: { args?: string[] }) => [{ result: args

@@ -32,7 +32,7 @@ export function composerToolsOnPage() {
       });
       return result;
     }
-    return text(element).replace(/\u00a0/g, ' ');
+    return text(element);
   }
   function write(element: HTMLElement, value: string): void {
     element.focus();

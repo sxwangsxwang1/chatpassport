@@ -1,6 +1,6 @@
 # Chrome Web Store listing copy
 
-Use these fields as the English (`en`) listing for version 0.1.3.
+Use these fields as the English (`en`) listing for version 0.1.4.
 
 ## Product details
 
@@ -50,6 +50,8 @@ ChatPassport transfers text and fenced code blocks. Images, attachments, citatio
 History capture scrolls through the conversation and merges rendered windows, including virtualized messages. You can stop and keep partial results. Capture is bounded to two minutes and a safety size limit. Reaching page boundaries is not proof of complete server history: hidden branches, collapsed content, slow or unsupported loaders may still be absent. Capture status is shown in the preview and included in JSON.
 
 Repeated windows without reliable message IDs are retained with an explicit warning about possible duplicates or gaps. JSON capture, export and import share a 25 MiB UTF-8 limit, including formatting and metadata. Oversized captures retain whole messages that fit and are marked partial; an individually oversized message is rejected rather than truncated. Code-block whitespace is preserved.
+
+History scrolling now recognizes the same DeepSeek and Gemini message structures as extraction. Nonbreaking spaces in code and drafts are retained when verifying the destination editor.
 
 PRIVACY
 
