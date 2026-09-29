@@ -41,6 +41,8 @@ function showRelayReady(relay: ReadyRelayResponse): void {
   document.getElementById(STATUS_ELEMENT_ID)?.remove();
 
   const host = document.createElement("div");
+  let dismissed = false;
+  const isActive = () => !dismissed && host.isConnected;
   host.id = STATUS_ELEMENT_ID;
   host.style.position = "fixed";
   host.style.right = "20px";
@@ -74,10 +76,13 @@ function showRelayReady(relay: ReadyRelayResponse): void {
   const dismiss = document.createElement("button");
   dismiss.type = "button";
   dismiss.textContent = "Dismiss";
-  dismiss.addEventListener("click", () => host.remove());
+  dismiss.addEventListener("click", () => {
+    dismissed = true;
+    host.remove();
+  });
 
   continueButton.addEventListener("click", () => {
-    void prepareContinuation(relay, { card, heading, detail, feedback, continueButton });
+    void prepareContinuation(relay, { card, heading, detail, feedback, continueButton, dismissButton: dismiss }, isActive);
   });
 
   const style = document.createElement("style");
@@ -125,9 +130,10 @@ interface RelayElements {
   detail: HTMLElement;
   feedback: HTMLElement;
   continueButton: HTMLButtonElement;
+  dismissButton: HTMLButtonElement;
 }
 
-async function prepareContinuation(relay: ReadyRelayResponse, elements: RelayElements): Promise<void> {
+async function prepareContinuation(relay: ReadyRelayResponse, elements: RelayElements, isActive: () => boolean): Promise<void> {
   const transaction = beginComposerTransaction();
   if (!transaction) {
     showError(elements, "The message box is not ready yet. Wait for the page to finish loading and try again.");
@@ -151,10 +157,12 @@ async function prepareContinuation(relay: ReadyRelayResponse, elements: RelayEle
         currentRequest: transaction.original,
       });
     } catch {
+      if (!isActive()) return;
       showError(elements, "The extension could not prepare this transfer. Open ChatPassport and try again.");
       resetButton(elements.continueButton);
       return;
     }
+    if (!isActive()) return;
 
     if (!isRelayResponse(response) || response.status === "none") {
       showError(elements, "This transfer is no longer available. Start it again from the source conversation.");
@@ -172,8 +180,26 @@ async function prepareContinuation(relay: ReadyRelayResponse, elements: RelayEle
       return;
     }
 
-    await finishComposerReplacement(relay, response, transaction, elements);
+    // A transfer may have been cleared or replaced after composition was queued.
+    let current: unknown;
+    try {
+      current = await browser.runtime.sendMessage({ type: GET_PENDING_RELAY });
+    } catch {
+      if (!isActive()) return;
+      showError(elements, "The extension could not verify this transfer. Open ChatPassport and try again.");
+      resetButton(elements.continueButton);
+      return;
+    }
+    if (!isActive()) return;
+    if (!isRelayResponse(current) || current.status !== "ready" || current.transferId !== relay.transferId) {
+      showError(elements, "This transfer is no longer available. Start it again from the source conversation.");
+      resetButton(elements.continueButton);
+      return;
+    }
+
+    await finishComposerReplacement(relay, response, transaction, elements, isActive);
   } catch {
+    if (!isActive()) return;
     showError(elements, `The draft could not be verified. Review the editor. Original question: ${transaction.original}`);
     resetButton(elements.continueButton);
   } finally {
@@ -186,8 +212,17 @@ async function finishComposerReplacement(
   composed: ComposedRelayResponse,
   transaction: NonNullable<ReturnType<typeof beginComposerTransaction>>,
   elements: RelayElements,
+  isActive: () => boolean,
 ): Promise<void> {
-  const result = await transaction.replace(composed.text);
+  if (!isActive()) return;
+  // Once the synchronous write starts, Dismiss must not appear to cancel it.
+  elements.dismissButton.disabled = true;
+  let result: Awaited<ReturnType<typeof transaction.replace>>;
+  try {
+    result = await transaction.replace(composed.text);
+  } finally {
+    elements.dismissButton.disabled = false;
+  }
   if (!result.success) {
     showError(elements, `${result.message}\nOriginal question: ${transaction.original}`);
     resetButton(elements.continueButton);

@@ -211,6 +211,35 @@ describe('history capture integration', () => {
     expect(passport.capture?.status).toBe('page-history');
     expect(area.scrollTop).toBe(lazy ? original + 1500 : original);
   });
+  it('waits for older messages that arrive after the former boundary timeout', async () => {
+    vi.useFakeTimers();
+    const url = 'https://chatgpt.com/c/delayed';
+    let requestedOlder = false;
+    let loadedOlder = false;
+    let restored = false;
+    mocks.query.mockResolvedValue([{ id: 7, url }]);
+    mocks.executeScript.mockImplementation(async ({ args }: { args?: string[] }) => {
+      if (args) {
+        if (args[0] === 'restore') restored = true;
+        if (args[0] === 'up' && !requestedOlder) {
+          requestedOlder = true;
+          setTimeout(() => { loadedOlder = true; }, 10_000);
+        }
+        return [{ result: { top: 0, height: loadedOlder ? 400 : 200, viewport: 200, boundary: true } }];
+      }
+      return [{ result: {
+        provider: 'chatgpt', title: 'Delayed history', url,
+        messages: loadedOlder ? [message(0), message(1)] : [message(1)],
+      } }];
+    });
+
+    const capture = extractActiveConversation();
+    await vi.advanceTimersByTimeAsync(119_000);
+    const result = await capture;
+    expect(result.messages.map((item) => item.content[0]?.text)).toEqual(['0', '1']);
+    expect(result.capture?.status).toBe('page-history');
+    expect(restored).toBe(true);
+  });
   it('returns partial results on cancel and restores scrolling', async () => {
     vi.useFakeTimers();
     const { area, original } = virtualPage();

@@ -4,6 +4,9 @@ import { extractConversationFromPage } from "./adapters/page";
 import { mergeHistory, scrollHistoryOnPage } from "./history";
 import { fitCapturedPassport, passportSchema, type Passport, type PassportMessage, type Provider } from "./passport";
 
+const SCROLL_POLL_MS = 600;
+const BOUNDARY_IDLE_MS = 12_000;
+
 export interface ActiveTabContext { id: number; url: string; provider: Provider | null }
 export async function getActiveTabContext(): Promise<ActiveTabContext> {
   const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
@@ -82,20 +85,25 @@ export async function extractActiveConversation(options: {
   try {
     await collect('up', startPosition);
     for (const direction of ['up', 'down'] as const) {
-      let stable = 0;
+      let boundarySince: number | undefined;
       let previous = "";
       let stalled = 0;
-      while (!ended && stable < 4) {
+      while (!ended) {
         if (options.signal?.aborted || Date.now() >= deadline) {
           ended = true;
           reason = options.signal?.aborted ? "Capture stopped by you; only collected messages are included." : "Two-minute loading limit reached; the history may be incomplete.";
           break;
         }
         const position = await scroll(direction);
-        await new Promise((resolve) => setTimeout(resolve, 600));
+        await new Promise((resolve) => setTimeout(resolve, SCROLL_POLL_MS));
         const fingerprint = await collect(direction, position);
         const signature = JSON.stringify(position) + fingerprint;
-        stable = position.boundary && signature === previous ? stable + 1 : 0;
+        if (position.boundary) {
+          if (signature !== previous || boundarySince === undefined) boundarySince = Date.now();
+          else if (Date.now() - boundarySince >= BOUNDARY_IDLE_MS) break;
+        } else {
+          boundarySince = undefined;
+        }
         stalled = signature === previous ? stalled + 1 : 0;
         previous = signature;
         if (stalled >= 8 && !position.boundary) {
