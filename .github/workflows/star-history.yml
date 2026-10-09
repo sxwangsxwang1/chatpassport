@@ -7,6 +7,7 @@ on:
     paths:
       - .github/workflows/star-history.yml
       - scripts/update-star-assets.mjs
+      - scripts/star-history-chart.mjs
   schedule:
     - cron: "30 4 * * 1"
   workflow_dispatch:

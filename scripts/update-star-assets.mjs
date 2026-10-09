@@ -1,4 +1,5 @@
 import { mkdir, writeFile } from "node:fs/promises";
+import { dailyStarGrowth, renderHistory } from "./star-history-chart.mjs";
 
 const token = process.env.GITHUB_TOKEN;
 const repository = process.env.GITHUB_REPOSITORY;
@@ -56,58 +57,13 @@ do {
 } while (cursor);
 
 starredAt.sort();
+const days = dailyStarGrowth(starredAt, createdAt);
 await mkdir("assets", { recursive: true });
 await Promise.all([
-  writeFile("assets/star-history.svg", renderHistory("light")),
-  writeFile("assets/star-history-dark.svg", renderHistory("dark")),
+  writeFile("assets/star-history.svg", renderHistory("light", repository, days)),
+  writeFile("assets/star-history-dark.svg", renderHistory("dark", repository, days)),
   writeFile("assets/star-badge.svg", renderBadge()),
 ]);
-
-function renderHistory(theme) {
-  const dark = theme === "dark";
-  const colors = dark
-    ? { bg: "#0d1117", grid: "#30363d", text: "#e6edf3", muted: "#8b949e", line: "#58a6ff", fill: "#58a6ff" }
-    : { bg: "#ffffff", grid: "#d8dee4", text: "#24292f", muted: "#57606a", line: "#0969da", fill: "#0969da" };
-  const width = 840;
-  const height = 360;
-  const left = 68;
-  const right = 28;
-  const top = 70;
-  const bottom = 48;
-  const chartWidth = width - left - right;
-  const chartHeight = height - top - bottom;
-  const startTime = new Date(createdAt).getTime();
-  const endTime = Math.max(Date.now(), startTime + 86_400_000);
-  const maxY = Math.max(1, starCount);
-  const x = (time) => left + ((time - startTime) / (endTime - startTime)) * chartWidth;
-  const y = (count) => top + chartHeight - (count / maxY) * chartHeight;
-
-  const points = [{ time: startTime, count: 0 }];
-  starredAt.forEach((date, index) => points.push({ time: new Date(date).getTime(), count: index + 1 }));
-  points.push({ time: endTime, count: starCount });
-  const polyline = points.map((point) => `${x(point.time).toFixed(1)},${y(point.count).toFixed(1)}`).join(" ");
-  const area = `${left},${top + chartHeight} ${polyline} ${left + chartWidth},${top + chartHeight}`;
-
-  const horizontalGrid = Array.from({ length: 5 }, (_, index) => {
-    const ratio = index / 4;
-    const gridY = top + chartHeight * ratio;
-    const label = Math.round(maxY * (1 - ratio));
-    return `<line x1="${left}" y1="${gridY}" x2="${left + chartWidth}" y2="${gridY}" stroke="${colors.grid}" stroke-width="1"/><text x="${left - 12}" y="${gridY + 4}" text-anchor="end" fill="${colors.muted}" font-size="12">${label}</text>`;
-  }).join("");
-
-  const dateLabels = Array.from({ length: 4 }, (_, index) => {
-    const ratio = index / 3;
-    const time = startTime + (endTime - startTime) * ratio;
-    const label = new Date(time).toISOString().slice(0, 10);
-    return `<text x="${left + chartWidth * ratio}" y="${height - 18}" text-anchor="${index === 0 ? "start" : index === 3 ? "end" : "middle"}" fill="${colors.muted}" font-size="12">${label}</text>`;
-  }).join("");
-
-  const emptyState = starCount === 0
-    ? `<text x="${left + chartWidth / 2}" y="${top + chartHeight / 2 - 8}" text-anchor="middle" fill="${colors.text}" font-size="20" font-weight="600">No stars yet</text><text x="${left + chartWidth / 2}" y="${top + chartHeight / 2 + 20}" text-anchor="middle" fill="${colors.muted}" font-size="14">Be the first to star ChatPassport ⭐</text>`
-    : `<polygon points="${area}" fill="${colors.fill}" fill-opacity="0.10"/><polyline points="${polyline}" fill="none" stroke="${colors.line}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${x(endTime)}" cy="${y(starCount)}" r="5" fill="${colors.line}"/>`;
-
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeXml(repository)} star history: ${starCount} stars"><rect width="${width}" height="${height}" rx="12" fill="${colors.bg}"/><text x="${left}" y="34" fill="${colors.text}" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="20" font-weight="700">Star History</text><text x="${left}" y="55" fill="${colors.muted}" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="13">${escapeXml(repository)} · ${starCount} ${starCount === 1 ? "star" : "stars"}</text><g font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif">${horizontalGrid}${dateLabels}${emptyState}</g></svg>\n`;
-}
 
 function renderBadge() {
   const count = String(starCount);

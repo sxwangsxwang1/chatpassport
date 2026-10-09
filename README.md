@@ -285,11 +285,11 @@ pnpm check
 
 ## Star history
 
-If ChatPassport is useful, give the project a star. The chart below is generated in this repository and tracks its recent star growth.
+If ChatPassport is useful, give the project a star. The chart below shows new stars per UTC day over the past 60 days.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/star-history-dark.svg" />
-  <img alt="ChatPassport GitHub star history" src="assets/star-history.svg" />
+  <img alt="ChatPassport daily GitHub star growth" src="assets/star-history.svg" />
 </picture>
 
 <div align="center">
