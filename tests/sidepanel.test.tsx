@@ -9,7 +9,7 @@ vi.mock('wxt/browser', () => ({ browser: {
   tabs: { onActivated: { addListener: mocks.add, removeListener: mocks.remove }, onUpdated: { addListener: mocks.add, removeListener: mocks.remove } },
   storage: { onChanged: { addListener: mocks.add, removeListener: mocks.remove } },
 } }));
-vi.mock('../lib/pending', () => ({ getPendingTransfer: mocks.get, savePendingTransfer: mocks.save, clearPendingTransfer: mocks.clear }));
+vi.mock('../lib/pending', () => ({ PENDING_KEY: 'pendingTransfer', getPendingTransfer: mocks.get, savePendingTransfer: mocks.save, clearPendingTransfer: mocks.clear }));
 vi.mock('../lib/browser', () => ({ getActiveTabContext: mocks.tab, extractActiveConversation: mocks.extract }));
 import App from '../entrypoints/sidepanel/App';
 
@@ -49,9 +49,26 @@ describe('independent preview and transfer state', () => {
   it('does not reset the selected target on background tab/storage refresh', async () => {
     await click('Prepare for Claude');
     await click('Gemini');
-    await act(async () => { for (const [listener] of mocks.add.mock.calls) listener(); });
+    await act(async () => { mocks.add.mock.calls[0]![0](); });
     expect(button('Gemini').className).toContain('selected');
     expect(button('Claude').className).not.toContain('selected');
+  });
+  it('refreshes only for active URL changes and pending transfer storage changes', async () => {
+    const onUpdated = mocks.add.mock.calls[1]![0];
+    const onStorageChanged = mocks.add.mock.calls[2]![0];
+    const initialReads = mocks.get.mock.calls.length;
+    await act(async () => {
+      onUpdated(2, { status: 'loading' }, { active: true });
+      onUpdated(3, { url: 'https://claude.ai/new' }, { active: false });
+      onStorageChanged({ other: {} }, 'session');
+      onStorageChanged({ pendingTransfer: {} }, 'local');
+    });
+    expect(mocks.get).toHaveBeenCalledTimes(initialReads);
+    await act(async () => {
+      onUpdated(2, { url: 'https://claude.ai/new' }, { active: true });
+      onStorageChanged({ pendingTransfer: {} }, 'session');
+    });
+    expect(mocks.get).toHaveBeenCalledTimes(initialReads + 2);
   });
   it('copies all of the saved pending transfer, independently of preview range', async () => {
     await click('Prepare for Claude');
@@ -124,7 +141,7 @@ describe('guided capture and capacity estimates', () => {
   });
   it('offers the current source as a new-chat destination before reading', async () => {
     mocks.tab.mockResolvedValue({ id: 2, url: 'https://claude.ai/new', provider: 'claude' });
-    await act(async () => { for (const [listener] of mocks.add.mock.calls) listener(); });
+    await act(async () => { mocks.add.mock.calls[0]![0](); });
     expect(button('Claude · new chat')).toBeTruthy();
     expect(document.querySelector('.provider.selected')?.textContent).toBe('Claude · new chat');
   });

@@ -154,6 +154,18 @@ describe("page adapters", () => {
     expect(result.messages[1]?.content[0]?.text).toBe("Here is an explanation");
   });
 
+  it("omits Gemini's screen-reader heading from user messages", () => {
+    const result = extract(`
+      <user-query><user-query-content>
+        <h5 class="cdk-visually-hidden screen-reader-user-query-label"><span>You said</span> Explain this</h5>
+        <p class="query-text-line">Explain this</p>
+      </user-query-content></user-query>
+    `, "https://gemini.google.com/app/test", "Explanation - Gemini");
+
+    expect(result.messages).toHaveLength(1);
+    expect(result.messages[0]?.content[0]?.text).toBe("Explain this");
+  });
+
   it("extracts DeepSeek role attributes", () => {
     const result = extract(`
       <div data-role="user"><p>Find the bug</p></div>
@@ -162,6 +174,17 @@ describe("page adapters", () => {
 
     expect(result.messages).toHaveLength(2);
     expect(result.messages[1]?.role).toBe("assistant");
+  });
+
+  it("extracts DeepSeek's current user bubble and assistant body", () => {
+    const result = extract(`
+      <div class="ds-message"><div><div class="ds-collapsible-text">Test question</div></div><button>Copy</button></div>
+      <div class="ds-message"><div class="ds-markdown ds-assistant-message-main-content"><p>Test answer</p></div><button>Copy</button></div>
+    `, "https://chat.deepseek.com/a/chat/s/test", "Test - DeepSeek");
+
+    expect(result.messages.map((message) => [message.role, message.content[0]?.text])).toEqual([
+      ["user", "Test question"], ["assistant", "Test answer"],
+    ]);
   });
 
   it("rejects unsupported pages", () => {

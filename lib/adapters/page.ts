@@ -102,6 +102,17 @@ export function extractConversationFromPage(): PageExtraction {
     add('[class*="assistant-message"]', "assistant");
     add('[class*="message_user"]', "user");
     add('[class*="message_assistant"]', "assistant");
+    // Current DeepSeek renders both roles as .ds-message; the user bubble
+    // contains a collapsible text body while the assistant has a main body.
+    document.querySelectorAll('.ds-message').forEach((element) => {
+      if (seen.has(element)) return;
+      const role = element.querySelector(':scope > .ds-assistant-message-main-content')
+        ? 'assistant' : element.querySelector('.ds-collapsible-text') ? 'user' : null;
+      if (role) {
+        seen.add(element);
+        candidates.push({ element, role });
+      }
+    });
   }
 
   candidates.sort((a, b) => {
@@ -135,7 +146,7 @@ export function extractConversationFromPage(): PageExtraction {
 
     // KaTeX's visual copy is aria-hidden, so removing hidden nodes leaves one
     // MathML copy whose TeX annotation is read below.
-    clone.querySelectorAll('button, [hidden], [aria-hidden="true"], .sr-only').forEach((node) => node.remove());
+    clone.querySelectorAll('button, [hidden], [aria-hidden="true"], .sr-only, .cdk-visually-hidden').forEach((node) => node.remove());
 
     // Protected segments (code, math) skip whitespace normalization and are
     // restored at the end. The marker never occurs in the message text.

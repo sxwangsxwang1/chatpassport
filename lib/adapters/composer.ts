@@ -4,7 +4,9 @@ export function composerToolsOnPage() {
     'chatgpt.com': ['#prompt-textarea', 'main [contenteditable="true"][role="textbox"]'],
     'chat.openai.com': ['#prompt-textarea', 'main [contenteditable="true"][role="textbox"]'],
     'claude.ai': ['.ProseMirror[contenteditable="true"]', 'main [contenteditable="true"][role="textbox"]'],
-    'gemini.google.com': ['rich-textarea [contenteditable="true"]', '.ql-editor[contenteditable="true"]'],
+    // Gemini also has a visible .ql-clipboard contenteditable inside rich-textarea.
+    // Target the actual editor so the clipboard cannot make the match ambiguous.
+    'gemini.google.com': ['rich-textarea .ql-editor[contenteditable="true"]', '.ql-editor[contenteditable="true"]'],
     'chat.deepseek.com': ['.ql-editor[contenteditable="true"]', 'textarea[placeholder*="message" i]'],
   };
   const selectors = selectorsByHost[location.hostname] ?? [];

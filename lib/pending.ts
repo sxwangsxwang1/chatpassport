@@ -3,6 +3,7 @@ import { z } from "zod";
 import { passportSchema, providerSchema, type Passport, type Provider } from "./passport";
 
 export const PENDING_COMMAND = "chatpassport:pending";
+export const PENDING_KEY = "pendingTransfer";
 export const pendingTransferSchema = z.object({
   passport: passportSchema, target: providerSchema, savedAt: z.number().finite(),
   transferId: z.string().uuid(), targetTabId: z.number().int().nonnegative(),

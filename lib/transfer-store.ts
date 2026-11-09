@@ -1,10 +1,10 @@
 import { browser } from 'wxt/browser';
 import { PENDING_TTL_MS, PROVIDER_URLS, SESSION_MAX_BYTES } from './core';
 import { passportSchema, passportSize, providerSchema } from './passport';
-import { pendingTransferSchema, type PendingTransfer } from './pending';
+import { PENDING_KEY, pendingTransferSchema, type PendingTransfer } from './pending';
 import { planContinuation } from './relay';
 
-export const PENDING_KEY = 'pendingTransfer';
+export { PENDING_KEY } from './pending';
 export const EXPIRY_PREFIX = 'chatpassport:expire:';
 
 /** All reads, writes, completion and alarms run through the background's queue. */

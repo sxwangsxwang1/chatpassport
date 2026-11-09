@@ -2,8 +2,8 @@ import { JSDOM } from 'jsdom';
 import { describe, expect, it } from 'vitest';
 import { beginComposerTransaction, composerToolsOnPage } from '../lib/adapters/composer';
 
-function setup(html = '<textarea id="prompt-textarea">My question</textarea>') {
-  const dom = new JSDOM(`<main>${html}</main>`, { url: 'https://chatgpt.com/c/one', runScripts: 'outside-only' });
+function setup(html = '<textarea id="prompt-textarea">My question</textarea>', url = 'https://chatgpt.com/c/one') {
+  const dom = new JSDOM(`<main>${html}</main>`, { url, runScripts: 'outside-only' });
   dom.window.document.querySelectorAll<HTMLElement>('textarea,[contenteditable]').forEach((element) => {
     element.getClientRects = () => ({ length: 1 }) as DOMRectList;
   });
@@ -34,6 +34,14 @@ describe('draft preservation', () => {
   it('does not select an unrelated visible textarea', () => {
     const { dom, tools } = setup('<textarea placeholder="Search">Search query</textarea>');
     expect(tools.find()).toBeUndefined();
+    dom.window.close();
+  });
+  it('selects the Gemini editor beside its visible clipboard helper', () => {
+    const { dom, tools } = setup(
+      '<rich-textarea><div class="ql-editor" contenteditable="true" role="textbox"><p><br></p></div><div class="ql-clipboard" contenteditable="true"></div></rich-textarea>',
+      'https://gemini.google.com/app',
+    );
+    expect(tools.find()?.classList.contains('ql-editor')).toBe(true);
     dom.window.close();
   });
   it('refuses two visible composer candidates', () => {

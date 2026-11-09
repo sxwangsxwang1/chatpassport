@@ -13,6 +13,7 @@ import { extractActiveConversation, getActiveTabContext } from "../../lib/browse
 import {
   clearPendingTransfer,
   getPendingTransfer,
+  PENDING_KEY,
   savePendingTransfer,
   type PendingTransfer,
 } from "../../lib/pending";
@@ -115,17 +116,22 @@ export default function App() {
   useEffect(() => {
     void refreshContext();
     const onTabChanged = () => void refreshContext();
+    const onTabUpdated = (_tabId: number, changeInfo: { url?: string }, tab: { active?: boolean }) => {
+      if (tab.active && changeInfo.url) void refreshContext();
+    };
     const onWindowFocus = () => void refreshContext();
-    const onStorageChanged = () => void refreshContext();
+    const onStorageChanged = (changes: Record<string, unknown>, areaName: string) => {
+      if (areaName === "session" && PENDING_KEY in changes) void refreshContext();
+    };
     browser.tabs.onActivated.addListener(onTabChanged);
-    browser.tabs.onUpdated.addListener(onTabChanged);
+    browser.tabs.onUpdated.addListener(onTabUpdated);
     browser.storage.onChanged.addListener(onStorageChanged);
     window.addEventListener("focus", onWindowFocus);
     return () => {
       captureController.current?.abort();
       refreshGeneration.current++;
       browser.tabs.onActivated.removeListener(onTabChanged);
-      browser.tabs.onUpdated.removeListener(onTabChanged);
+      browser.tabs.onUpdated.removeListener(onTabUpdated);
       browser.storage.onChanged.removeListener(onStorageChanged);
       window.removeEventListener("focus", onWindowFocus);
     };
