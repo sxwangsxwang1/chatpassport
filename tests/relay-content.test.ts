@@ -46,6 +46,8 @@ afterEach(() => {
 describe('prepared draft on arrival', () => {
   const prepared: ReadyRelayResponse = { ...ready, currentRequest: 'Prepared question', approvedOmittedMessageCount: 0 };
   it('inserts into an empty editor automatically and leaves Send to the website', async () => {
+    const copy = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { clipboard: { writeText: copy } });
     mocks.sendMessage.mockImplementation(({ type }: { type: string }) => {
       if (type === GET_PENDING_RELAY) return Promise.resolve(prepared);
       if (type === COMPOSE_PENDING_RELAY) return Promise.resolve({ ...composed, text: 'Context\n\nPrepared question' });
@@ -55,6 +57,12 @@ describe('prepared draft on arrival', () => {
     await vi.waitFor(() => expect(transaction.replace).toHaveBeenCalledWith('Context\n\nPrepared question'));
     expect(host.shadowRoot!.textContent).toContain('review and send');
     expect(mocks.sendMessage).toHaveBeenCalledWith({ type: COMPLETE_PENDING_RELAY, transferId: prepared.transferId });
+    const copyButton = Array.from(host.shadowRoot!.querySelectorAll('button')).find((button) => button.textContent === 'Copy prepared draft')!;
+    expect(copyButton.hidden).toBe(false);
+    mocks.sendMessage.mockResolvedValue({ status: 'none' });
+    copyButton.click();
+    await vi.waitFor(() => expect(copy).toHaveBeenCalledWith('Context\n\nPrepared question'));
+    expect(mocks.sendMessage).toHaveBeenCalledTimes(4);
     dom.window.close();
   });
   it('does not overwrite an existing destination draft', async () => {
@@ -111,12 +119,13 @@ describe('destination relay cancellation', () => {
       if (type === COMPOSE_PENDING_RELAY) return Promise.resolve(composed);
       return Promise.resolve(true);
     });
-    const { dom, continueButton, transaction } = await setup();
+    const { dom, host, continueButton, transaction } = await setup();
     continueButton.click();
     await vi.waitFor(() => expect(transaction.dispose).toHaveBeenCalled());
 
     expect(transaction.replace).toHaveBeenCalledWith(composed.text);
     expect(mocks.sendMessage).toHaveBeenCalledWith({ type: COMPLETE_PENDING_RELAY, transferId: ready.transferId });
+    expect(Array.from(host.shadowRoot!.querySelectorAll('button')).find((button) => button.textContent === 'Copy prepared draft')?.hidden).toBe(false);
     dom.window.close();
   });
 

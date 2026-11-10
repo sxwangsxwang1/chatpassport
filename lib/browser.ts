@@ -51,6 +51,8 @@ export async function extractActiveConversation(options: {
   let title = "";
   let gap = false;
   let ended = false;
+  let countLimitReached = false;
+  let sizeLimitReached = false;
   let reason = "Reached both ends of the page history. Server-side, collapsed, branched or unsupported content may still be absent.";
   const deadline = Date.now() + 120_000;
   let previousSnapshot = "";
@@ -62,7 +64,7 @@ export async function extractActiveConversation(options: {
     format: 'chatpassport', version: '1.0', id: passportId, title,
     source: { provider: tab.provider!, url: tab.url, exportedAt },
     messages: messages.map((message, index) => ({ ...message, id: `captured-${index + 1}` })),
-    capture: { method: 'scroll', status: ended || gap ? 'partial' : 'page-history', reason },
+    capture: { method: 'scroll', status: ended || gap || countLimitReached || sizeLimitReached ? 'partial' : 'page-history', reason },
   });
   const collect = async (direction: 'up' | 'down', position: { top: number; height: number }) => {
     const [injection] = await browser.scripting.executeScript({ target: { tabId: tab.id }, func: extractConversationFromPage });
@@ -84,16 +86,16 @@ export async function extractActiveConversation(options: {
     previousObservation = result.observation;
     previousPosition = positionKey;
     if (messages.length > 20_000) {
-      messages = messages.slice(0, 20_000);
-      ended = true;
-      reason = "Capture message-count limit reached; export this partial history or use a smaller conversation.";
+      messages = messages.slice(-20_000);
+      countLimitReached = true;
+      if (direction === 'up') ended = true;
     }
     if (messages.length) {
       const fitted = fitCapturedPassport(makePassport());
       if (fitted.messages.length < messages.length) {
-        messages = messages.slice(0, fitted.messages.length);
-        ended = true;
-        reason = fitted.capture!.reason;
+        messages = messages.slice(-fitted.messages.length);
+        sizeLimitReached = true;
+        if (direction === 'up') ended = true;
       }
     }
     options.onProgress?.(messages.length, direction === 'up' ? 'Loading older messages' : 'Checking through the latest messages');
@@ -101,13 +103,15 @@ export async function extractActiveConversation(options: {
   };
   const startPosition = await scroll('start');
   try {
-    await collect('up', startPosition);
+    await collect('down', startPosition);
     if (!messages.length) throw new Error('No messages were found. Open a conversation and try again.');
     if (startPosition.virtualized && startPosition.height <= startPosition.viewport + 2) {
       ended = true;
       reason = 'This page shows virtualized messages but has no scrollable history. Only currently rendered messages were read; older messages may be missing.';
     }
-    for (const direction of ['up', 'down'] as const) {
+    // Visit the newest end first so a capacity limit never prevents us from
+    // collecting the final turns when capture starts in the middle.
+    for (const direction of ['down', 'up'] as const) {
       let boundarySince: number | undefined;
       let previous = "";
       let stalled = 0;
@@ -139,6 +143,12 @@ export async function extractActiveConversation(options: {
     await scroll('restore').catch(() => undefined);
   }
   if (!messages.length) throw new Error("No messages were found. Open a conversation and try again.");
-  if (gap) reason = `${ended ? reason + ' ' : ''}Some rendered windows could not be aligned reliably. Retained windows may contain gaps or duplicates.`;
+  const defaultReason = "Reached both ends of the page history. Server-side, collapsed, branched or unsupported content may still be absent.";
+  reason = [
+    countLimitReached ? 'Capture message-count limit reached. Only the 20,000 most recent collected messages are included.' : '',
+    sizeLimitReached ? 'The UTF-8 JSON file limit was reached. Only the most recent collected messages that fit are included; older messages were omitted without cutting any message.' : '',
+    reason !== defaultReason || (!countLimitReached && !sizeLimitReached) ? reason : '',
+    gap ? 'Some rendered windows could not be aligned reliably. Retained windows may contain gaps or duplicates.' : '',
+  ].filter(Boolean).join(' ');
   return passportSchema.parse(fitCapturedPassport(makePassport()));
 }

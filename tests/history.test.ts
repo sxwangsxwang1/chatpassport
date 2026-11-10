@@ -145,6 +145,25 @@ function providerMarkerPage(provider: 'deepseek' | 'gemini', marker: 'class' | '
 }
 
 describe('history capture integration', () => {
+  it('keeps newer turns when the initial window already exceeds the message limit', async () => {
+    const url = 'https://chatgpt.com/c/large-count';
+    const controller = new AbortController();
+    let reads = 0;
+    mocks.query.mockResolvedValue([{ id: 7, url }]);
+    mocks.executeScript.mockImplementation(async ({ args }: { args?: string[] }) => [{ result: args
+      ? { top: args[0] === 'down' ? 1 : 0, height: 2, viewport: 1, boundary: false }
+      : { provider: 'chatgpt', title: 'Large count', url, messages: ++reads === 1
+        ? Array.from({ length: 20_001 }, (_, id) => message(id))
+        : [message(20_000), message(20_001)] },
+    }]);
+    const result = await extractActiveConversation({ onProgress: () => { if (reads === 2) controller.abort(); }, signal: controller.signal });
+    expect(mocks.executeScript.mock.calls.map(([call]) => call.args?.[0]).filter(Boolean)).toEqual(['start', 'down', 'restore']);
+    expect(result.messages).toHaveLength(20_000);
+    expect(result.messages[0]?.content[0]?.text).toBe('2');
+    expect(result.messages.at(-1)?.content[0]?.text).toBe('20001');
+    expect(result.capture?.status).toBe('partial');
+    expect(result.capture?.reason).toContain('20,000 most recent');
+  });
   it.each([
     ['deepseek', 'class'],
     ['gemini', 'data-test-id'],
@@ -163,13 +182,16 @@ describe('history capture integration', () => {
     dom.window.close();
   });
   it('enforces the file byte budget in the capture pipeline and restores scrolling', async () => {
+    const controller = new AbortController();
     mocks.query.mockResolvedValue([{ id: 7, url: 'https://chatgpt.com/c/large' }]);
     mocks.executeScript.mockImplementation(async ({ args }: { args?: string[] }) => [{ result: args
       ? { top: 0, height: 200, viewport: 200, boundary: true }
-      : { provider: 'chatgpt', title: 'Large', url: 'https://chatgpt.com/c/large', messages: [0, 1, 2].map((id) => message(id, '中'.repeat(3_000_000))) },
+      : { provider: 'chatgpt', title: 'Large', url: 'https://chatgpt.com/c/large', messages: [0, 1, 2].map((id) => message(id, `${id}${'中'.repeat(3_000_000)}`)) },
     }]);
-    const result = await extractActiveConversation();
+    const result = await extractActiveConversation({ signal: controller.signal, onProgress: () => controller.abort() });
     expect(result.messages).toHaveLength(2);
+    expect(result.messages.map((item) => item.content[0]?.text[0])).toEqual(['1', '2']);
+    expect(result.messages.map((item) => item.id)).toEqual(['captured-1', 'captured-2']);
     expect(result.capture?.status).toBe('partial');
     expect(result.capture?.reason).toContain('UTF-8');
     const json = serializePassport(result);

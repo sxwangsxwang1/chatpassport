@@ -122,10 +122,14 @@ export function extractConversationFromPage(): PageExtraction {
     return 0;
   });
 
-  const filtered = candidates.filter((candidate, index) => {
-    return !candidates.some((other, otherIndex) => {
-      return otherIndex !== index && other.role === candidate.role && other.element.contains(candidate.element);
-    });
+  // A candidate is redundant only when one of its ancestors has the same
+  // role. Walk the ancestor chain instead of comparing every candidate pair.
+  const roleByElement = new Map(candidates.map(({ element, role }) => [element, role]));
+  const filtered = candidates.filter(({ element, role }) => {
+    for (let ancestor = element.parentElement; ancestor; ancestor = ancestor.parentElement) {
+      if (roleByElement.get(ancestor) === role) return false;
+    }
+    return true;
   });
 
   function richText(element: Element, role: Role): string {

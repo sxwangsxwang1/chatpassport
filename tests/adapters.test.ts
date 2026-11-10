@@ -130,6 +130,24 @@ describe("page adapters", () => {
     ]);
   });
 
+  it("filters many message candidates without pairwise containment checks", () => {
+    const html = Array.from({ length: 500 }, (_, index) =>
+      `<article data-message-author-role="user"><p>Message ${index}</p></article>`).join("");
+    const dom = new JSDOM(html, { url: "https://chatgpt.com/c/long", runScripts: "outside-only" });
+    let containmentChecks = 0;
+    const contains = dom.window.Element.prototype.contains;
+    dom.window.Element.prototype.contains = function (node) {
+      containmentChecks++;
+      return contains.call(this, node);
+    };
+    const result = dom.window.eval(`(${extractConversationFromPage.toString()})()`) as PageExtraction;
+    expect(result.messages).toHaveLength(500);
+    // jsdom uses contains internally; the old candidate filter alone added
+    // roughly 250,000 calls for this fixture.
+    expect(containmentChecks).toBeLessThan(5_000);
+    dom.window.close();
+  });
+
   it("keeps all Claude legacy test-id content when no font body marker exists", () => {
     const result = extract(`
       <div data-testid="assistant-message">

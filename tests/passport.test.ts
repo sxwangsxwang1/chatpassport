@@ -27,7 +27,8 @@ describe("ChatPassport schema", () => {
     const json = serializePassport(fitted);
     expect(new TextEncoder().encode(json).byteLength).toBeLessThanOrEqual(PASSPORT_MAX_BYTES);
     expect(fitted.messages).toHaveLength(2);
-    expect(fitted.messages[0]).toEqual(large.messages[0]);
+    expect(fitted.messages).toEqual(large.messages.slice(-2));
+    expect(fitted.capture?.reason).toContain('older messages were omitted');
     expect(fitted.capture?.status).toBe('partial');
     expect(parsePassport(JSON.parse(json))).toEqual(fitted);
   });

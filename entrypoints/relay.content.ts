@@ -88,16 +88,18 @@ function showRelayReady(relay: ReadyRelayResponse): void {
   const dismiss = document.createElement("button");
   dismiss.type = "button";
   dismiss.textContent = "Dismiss";
+  const elements: RelayElements = { host, card, heading, detail, feedback, continueButton, copyDraftButton, recoveryButton, dismissButton: dismiss };
   dismiss.addEventListener("click", () => {
     dismissed = true;
+    elements.preparedDraft = undefined;
     host.remove();
   });
 
   continueButton.addEventListener("click", () => {
-    void prepareContinuation(relay, { host, card, heading, detail, feedback, continueButton, dismissButton: dismiss, recoveryButton }, isActive);
+    void prepareContinuation(relay, elements, isActive);
   });
   copyDraftButton.addEventListener("click", () => {
-    void copyPreparedDraft(relay, { host, card, heading, detail, feedback, continueButton, dismissButton: dismiss, recoveryButton }, copyDraftButton, isActive);
+    void copyPreparedDraft(relay, elements, isActive);
   });
 
   const style = document.createElement("style");
@@ -140,30 +142,39 @@ function showRelayReady(relay: ReadyRelayResponse): void {
   card.append(heading, detail, feedback, actions);
   shadow.append(style, card);
   if (relay.currentRequest !== undefined) {
-    void autoPrepareContinuation(relay, { host, card, heading, detail, feedback, continueButton, dismissButton: dismiss, recoveryButton }, isActive);
+    void autoPrepareContinuation(relay, elements, isActive);
   }
 }
 
 async function copyPreparedDraft(
-  relay: ReadyRelayResponse, elements: RelayElements, button: HTMLButtonElement, isActive: () => boolean,
+  relay: ReadyRelayResponse, elements: RelayElements, isActive: () => boolean,
 ): Promise<void> {
+  const button = elements.copyDraftButton;
   button.disabled = true;
   try {
-    const response: unknown = await browser.runtime.sendMessage({
-      type: COMPOSE_PENDING_RELAY, transferId: relay.transferId, currentRequest: relay.currentRequest ?? "",
-    });
-    if (!isActive()) return;
-    if (!isRelayResponse(response) || response.status !== "composed" || response.transferId !== relay.transferId
-      || response.omittedMessageCount !== relay.approvedOmittedMessageCount) {
-      showError(elements, "The prepared draft is no longer available or its message count changed. Start the transfer again.");
-      return;
+    let text = elements.preparedDraft;
+    if (text === undefined) {
+      const response: unknown = await browser.runtime.sendMessage({
+        type: COMPOSE_PENDING_RELAY, transferId: relay.transferId, currentRequest: relay.currentRequest ?? "",
+      });
+      if (!isActive()) return;
+      if (!isRelayResponse(response) || response.status !== "composed" || response.transferId !== relay.transferId
+        || response.omittedMessageCount !== relay.approvedOmittedMessageCount) {
+        showError(elements, "The prepared draft is no longer available or its message count changed. Start the transfer again.");
+        return;
+      }
+      text = response.text;
     }
-    await navigator.clipboard.writeText(response.text);
+    await navigator.clipboard.writeText(text);
     if (!isActive()) return;
     elements.feedback.hidden = false;
-    elements.feedback.textContent = "Draft copied. Paste it into the destination editor, review it, then click Send.";
+    elements.feedback.textContent = elements.preparedDraft === undefined
+      ? "Draft copied. Paste it into the destination editor, review it, then click Send."
+      : "Draft copied. You can paste it back if the website loses the inserted text. Review it before sending.";
   } catch {
-    if (isActive()) showError(elements, "Clipboard access failed. Try inserting the prepared draft after the editor loads.");
+    if (isActive()) showError(elements, elements.preparedDraft === undefined
+      ? "Clipboard access failed. Try inserting the prepared draft after the editor loads."
+      : "Clipboard access failed. Select the draft in the editor and copy it manually.");
   } finally {
     button.disabled = false;
   }
@@ -176,8 +187,10 @@ interface RelayElements {
   detail: HTMLElement;
   feedback: HTMLElement;
   continueButton: HTMLButtonElement;
+  copyDraftButton: HTMLButtonElement;
   dismissButton: HTMLButtonElement;
   recoveryButton: HTMLButtonElement;
+  preparedDraft?: string;
 }
 
 async function autoPrepareContinuation(relay: ReadyRelayResponse, elements: RelayElements, isActive: () => boolean): Promise<void> {
@@ -337,6 +350,10 @@ async function finishComposerReplacement(
     : `All ${composed.includedMessageCount} selected messages and your new request were added. This does not verify that the source history was complete. Review the message, then click ${PROVIDER_LABELS[relay.target]}'s Send button.`;
   elements.feedback.hidden = true;
   elements.continueButton.remove();
+  // The pending transfer is cleared below. Keep the verified draft on this
+  // card so Copy prepared draft remains useful if the website later loses it.
+  elements.preparedDraft = composed.text;
+  elements.copyDraftButton.hidden = false;
 
   void browser.runtime.sendMessage({
     type: COMPLETE_PENDING_RELAY,

@@ -68,7 +68,7 @@ export function passportSize(passport: Passport): number {
 /** Keep complete messages, including JSON formatting and metadata in the budget. */
 export function fitCapturedPassport(passport: Passport, maxBytes = PASSPORT_MAX_BYTES): Passport {
   if (passportSize(passport) <= maxBytes) return passport;
-  const sizeReason = 'The UTF-8 JSON file limit was reached. Only the collected messages that fit are included; later messages were omitted without cutting any message.';
+  const sizeReason = 'The UTF-8 JSON file limit was reached. Only the most recent collected messages that fit are included; older messages were omitted without cutting any message.';
   const previousReason = passport.capture?.status === 'partial' ? passport.capture.reason : '';
   const capture = {
     method: passport.capture?.method ?? 'scroll', status: 'partial' as const,
@@ -79,7 +79,7 @@ export function fitCapturedPassport(passport: Passport, maxBytes = PASSPORT_MAX_
   let best: Passport | undefined;
   while (low <= high) {
     const count = Math.floor((low + high) / 2);
-    const candidate: Passport = { ...passport, capture, messages: passport.messages.slice(0, count) };
+    const candidate: Passport = { ...passport, capture, messages: passport.messages.slice(-count) };
     if (passportSize(candidate) <= maxBytes) { best = candidate; low = count + 1; }
     else high = count - 1;
   }
