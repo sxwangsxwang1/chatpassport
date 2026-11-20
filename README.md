@@ -34,7 +34,7 @@
 
 1. [Install ChatPassport](https://chromewebstore.google.com/detail/chatpassport/anmmhpfpbaafkgdhalbllhmaejeappmb). Open a conversation on a [supported website](#supported-websites), then open the side panel. If the tab was already open when you installed the extension, refresh it once.
 2. Choose a destination and a capture mode. You can also choose the current assistant to start a new chat there. Click **Prepare for [destination]**. Review or search the full captured conversation, choose individual messages if needed, write your next question, and confirm any older selected messages that will be omitted.
-3. Click **Open editable draft in [destination]**. ChatPassport fills an empty destination editor when it becomes ready. Review the draft and click the website's **Send** button yourself. If automatic insertion cannot complete, use **Insert prepared draft** or **Copy prepared draft** on the destination card.
+3. Click **Open editable draft in [destination]**. ChatPassport fills an empty destination editor when it becomes ready. Review the draft and click the website's **Send** button yourself. If automatic insertion cannot complete, use **Insert prepared draft** or **Copy prepared draft** on the destination card. You can also copy the draft from the card if the editor clears it after insertion.
 
 > [!IMPORTANT]
 > ChatPassport does not click Send. Once context is inserted into the editor, the destination website may read or sync the draft before you send it.
@@ -46,7 +46,7 @@
 | **Quick** | Messages currently loaded on the page. No scrolling; coverage is marked partial. |
 | **Load history** (default) | Scrolls to collect older rendered messages, then restores your position. It can take up to two minutes. You can stop and keep the messages collected so far. |
 
-Websites may hide, collapse, or virtualize history. A scan that reaches both page boundaries still cannot guarantee that every past message was captured.
+Websites may hide, collapse, or virtualize history. A scan that reaches both page boundaries still cannot guarantee that every past message was captured. If a history scan reaches the capture limits, it keeps the most recent complete messages that fit and shows the reason in the side panel.
 
 ## What moves
 
@@ -60,7 +60,7 @@ When a draft omits messages, you can download the complete captured transcript a
 
 ## Privacy
 
-Capture begins only when you click **Prepare for [destination]**. ChatPassport needs no account or API key and has no developer-operated server, analytics, or tracking. The selected conversation and your next question are held in `chrome.storage.session` for one pending transfer, bound to one destination tab, and expire after one hour.
+Capture begins only when you click **Prepare for [destination]**. ChatPassport needs no account or API key and has no developer-operated server, analytics, or tracking. The selected conversation and your next question are held in `chrome.storage.session` for one pending transfer, bound to one destination tab, and expire after one hour. After insertion, the draft stays in the destination card's memory until you dismiss the card or the page unloads.
 
 Loading history may trigger the source website's normal requests. After insertion, the destination website handles the draft under its own policies. Read the [privacy policy](PRIVACY.md) for details.
 

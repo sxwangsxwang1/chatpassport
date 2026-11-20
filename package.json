@@ -1,6 +1,6 @@
 {
   "name": "chatpassport",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "private": true,
   "license": "MIT",
   "type": "module",
@@ -18,7 +18,7 @@
     "@wxt-dev/module-react": "^1.2.2",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "zod": "^4.5.4"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/chrome": "^0.2.7",
@@ -27,7 +27,7 @@
     "@types/react-dom": "^19.2.5",
     "jsdom": "^30.0.1",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.11",
+    "vitest": "^4.1.12",
     "wxt": "^0.21.4"
   },
   "packageManager": "pnpm@11.19.0"

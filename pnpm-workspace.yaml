@@ -1,0 +1,4 @@
+overrides:
+  # WXT and PostCSS resolve these transitively. Pin patched releases.
+  vite: 8.2.4
+  source-map-js: 1.2.4

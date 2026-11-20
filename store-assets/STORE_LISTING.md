@@ -1,6 +1,6 @@
 # Chrome Web Store listing copy
 
-Draft English (`en`) listing copy for the next release. Check the wording and screenshots after local testing.
+English (`en`) listing copy for ChatPassport 0.1.9.
 
 ## Product details
 
@@ -38,11 +38,11 @@ THREE SIMPLE STEPS
 
 1. Open a supported conversation, choose a destination and click Prepare.
 2. Review the capture, choose a message range or individual messages, write your next question, and confirm any omissions.
-3. Open an editable draft in your chosen assistant. ChatPassport fills an empty message box when ready. Review the draft and click Send yourself. Manual insert and copy options are available if needed.
+3. Open an editable draft in your chosen assistant. ChatPassport fills an empty message box when ready. Review the draft and click Send yourself. If the editor clears it, use Copy prepared draft on the destination card to recover it.
 
 LOCAL PROCESSING, YOUR CONTROL
 
-No ChatPassport account, API key, developer-operated server, analytics or tracking. Processing happens in your browser. One temporary transfer is bound to the destination tab and becomes inaccessible after one hour. Cleanup can be delayed while Chrome is asleep or stopped; expiry is also enforced on access.
+No ChatPassport account, API key, developer-operated server, analytics or tracking. Processing happens in your browser. A pending transfer is bound to the destination tab and expires after one hour. After insertion, the destination card keeps the draft in memory for copying until you dismiss the card or the page unloads.
 
 ChatPassport never clicks Send. Once the draft is inserted automatically or manually, the destination website can read or sync it before you send. Loading older history may trigger the source website's normal requests.
 
@@ -50,13 +50,13 @@ WHAT IS INCLUDED
 
 Text as Markdown, including tables, lists, links, fenced code blocks and TeX math. Non-decorative images appear as [image: description] or [image] placeholders; image and attachment contents, citation cards, artifacts and hidden reasoning are not transferred. Quick capture includes only currently rendered messages; history capture is limited to two minutes and cannot guarantee hidden, collapsed or server-side history. Coverage and any uncertainty are shown in the panel.
 
+If a history capture reaches the message count or file size limit, it keeps the most recent complete messages that fit and shows the limit in the side panel.
+
 Drafts have a 48,000-character budget including your next question (up to 8,000 characters). Oversized drafts retain complete recent selected messages, with explicit approval for omissions. This is not AI summarization; destination models may impose smaller limits. Captured JSON files have a 25 MiB limit. ChatPassport does not upload or verify downloaded transcript attachments.
 
 ChatPassport is not affiliated with OpenAI, Anthropic, Google, or DeepSeek.
 
 ## Optional listing URLs
-
-These links work publicly only after the repository is public. If it remains private, replace them with equivalent pages on a public website you control.
 
 - Homepage: `https://github.com/sxwangsxwang1/chatpassport`
 - Support: `https://github.com/sxwangsxwang1/chatpassport/issues`
@@ -69,7 +69,7 @@ These links work publicly only after the repository is public. If it remains pri
 3. Click Prepare for the chosen assistant. Check the captured count, coverage notice, and full searchable message preview.
 4. Choose a message range or individual messages, enter a next question, and confirm any displayed omission count. When the draft omits messages, download the full transcript if you want to attach it manually.
 5. Click Open editable draft. The destination tab should fill its empty editor automatically. If it cannot, try Insert prepared draft or Copy prepared draft on the card.
-6. Review the inserted draft. Confirm that ChatPassport did not click Send.
+6. Review the inserted draft. Clear the editor, then use Copy prepared draft and paste to verify you can recover the draft. Sending requires the website's Send button.
 7. More options exposes JSON/Markdown export and JSON import.
 
 No ChatPassport account, license key, backend or API key is required. Normal accounts for the supported AI websites are required under their own terms.

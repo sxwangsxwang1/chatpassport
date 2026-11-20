@@ -1,6 +1,6 @@
 # ChatPassport Privacy Policy
 
-Effective date: October 18, 2026
+Effective November 20, 2026
 
 ChatPassport helps users carry the rendered text of an AI conversation between supported AI assistant websites. The extension is designed to operate locally in the user's browser and does not require a ChatPassport account or API key.
 
@@ -26,6 +26,8 @@ After the user clicks **Open editable draft**, ChatPassport attempts to fill an 
 ## Storage and retention
 
 Pending quick-transfer data is stored in `chrome.storage.session`. It is bound to one destination tab, becomes inaccessible after one hour, and is removed on completion, manual clearing, or closure of that tab. A Chrome alarm schedules cleanup; sleeping or stopped browsers may delay deletion until Chrome resumes. Expiration is also checked on every access and worker startup. Session storage is cleared when the browser session ends. Previews remain in side-panel memory until replaced or the panel is closed.
+
+Starting with version 0.1.9, after insertion the destination card keeps the draft in memory so the user can copy it again. The copy is discarded when the user dismisses the card or the destination page unloads.
 
 Exported JSON or Markdown files are saved only through the browser's normal download flow at the user's request. Those files remain under the user's control until the user deletes them.
 
