@@ -1,5 +1,5 @@
 import { mkdir, writeFile } from "node:fs/promises";
-import { dailyStarGrowth, renderHistory } from "./star-history-chart.mjs";
+import { cumulativeStarHistory, renderHistory } from "./star-history-chart.mjs";
 
 const token = process.env.GITHUB_TOKEN;
 const repository = process.env.GITHUB_REPOSITORY;
@@ -57,11 +57,11 @@ do {
 } while (cursor);
 
 starredAt.sort();
-const days = dailyStarGrowth(starredAt, createdAt);
+const days = cumulativeStarHistory(starredAt, createdAt);
 await mkdir("assets", { recursive: true });
 await Promise.all([
-  writeFile("assets/star-history.svg", renderHistory("light", repository, days)),
-  writeFile("assets/star-history-dark.svg", renderHistory("dark", repository, days)),
+  writeFile("assets/star-history.svg", renderHistory("light", repository, days, starCount)),
+  writeFile("assets/star-history-dark.svg", renderHistory("dark", repository, days, starCount)),
   writeFile("assets/star-badge.svg", renderBadge()),
 ]);
 

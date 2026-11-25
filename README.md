@@ -1,102 +1,221 @@
-<p align="center">
-  <img src="public/icons/icon-128.png" alt="ChatPassport" width="64">
-</p>
+<div align="center">
 
-<h1 align="center">ChatPassport</h1>
+<img src="public/icons/icon-128.png" alt="ChatPassport" width="68" />
 
-<p align="center"><strong>Switch assistants. Keep your context.</strong></p>
+# ChatPassport
 
-<p align="center">
-  Continue a conversation in ChatGPT, Claude, Gemini, or DeepSeek.
-  ChatPassport prepares an editable draft; you review and send it.
-</p>
+### Switch assistants. Keep your context.
 
-<p align="center">
+Continue any conversation across **ChatGPT**, **Claude**, **Gemini**, and **DeepSeek** — or branch into a fresh thread on the same assistant — without manually copy-pasting messages one by one.
+
+<p>
   <a href="https://chromewebstore.google.com/detail/chatpassport/anmmhpfpbaafkgdhalbllhmaejeappmb">
-    <img src="https://img.shields.io/badge/Install-Chrome%20Web%20Store-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Install from the Chrome Web Store">
+    <img src="https://img.shields.io/badge/Chrome_Web_Store-Install-164c3a?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Install from the Chrome Web Store" />
   </a>
+  <a href="https://github.com/sxwangsxwang1/chatpassport/stargazers">
+    <img src="https://img.shields.io/github/stars/sxwangsxwang1/chatpassport?style=for-the-badge&logo=github&color=c6923a&labelColor=1f2924" alt="GitHub stars" />
+  </a>
+  <a href="LICENSE">
+    <img src="https://img.shields.io/badge/License-MIT-2d5a46?style=for-the-badge" alt="MIT License" />
+  </a>
+  <img src="https://img.shields.io/badge/Processing-100%25_Local-374151?style=for-the-badge" alt="100% Local Processing" />
 </p>
 
-<p align="center">
-  <a href="#how-it-works">How it works</a> ·
-  <a href="#capture-modes">Capture modes</a> ·
-  <a href="#privacy">Privacy</a> ·
-  <a href="#build-from-source">Build from source</a>
+<p>
+  <a href="#why-chatpassport">Why ChatPassport</a> ·
+  <a href="#how-it-works">How It Works</a> ·
+  <a href="#what-moves">What Moves</a> ·
+  <a href="#privacy--control">Privacy</a> ·
+  <a href="#build-from-source">Build from Source</a> ·
+  <a href="#star-history">Star History</a>
 </p>
 
-<p align="center">
-  <img src="store-assets/screenshots/01-capture.png" alt="ChatPassport capture preview with demonstration data" width="800">
-</p>
+<br />
 
-<p align="center"><sub>Screenshots show demonstration conversations.</sub></p>
+<img src="store-assets/promo-marquee-1400x560.png" alt="ChatPassport — carry your conversation context across ChatGPT, Claude, Gemini, and DeepSeek" width="840" />
 
-## How it works
+</div>
 
-1. [Install ChatPassport](https://chromewebstore.google.com/detail/chatpassport/anmmhpfpbaafkgdhalbllhmaejeappmb). Open a conversation on a [supported website](#supported-websites), then open the side panel. If the tab was already open when you installed the extension, refresh it once.
-2. Choose a destination and a capture mode. You can also choose the current assistant to start a new chat there. Click **Prepare for [destination]**. Review or search the full captured conversation, choose individual messages if needed, write your next question, and confirm any older selected messages that will be omitted.
-3. Click **Open editable draft in [destination]**. ChatPassport fills an empty destination editor when it becomes ready. Review the draft and click the website's **Send** button yourself. If automatic insertion cannot complete, use **Insert prepared draft** or **Copy prepared draft** on the destination card. You can also copy the draft from the card if the editor clears it after insertion.
+---
+
+## Why ChatPassport?
+
+Hit a message cap, want a second opinion from another model, or need a clean thread without losing hard-won decisions? ChatPassport turns a fragile copy-paste chore into a calm, inspectable 3-step handoff.
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <strong>🧭 Four assistants, any direction</strong><br />
+      Move seamlessly between <strong>ChatGPT</strong>, <strong>Claude</strong>, <strong>Gemini</strong>, and <strong>DeepSeek</strong> — or open a fresh chat on your current assistant with only the context that matters.
+    </td>
+    <td width="50%" valign="top">
+      <strong>✍️ Editable draft, never auto-sent</strong><br />
+      ChatPassport inserts a structured continuation draft and verifies it landed intact. You review, tweak, and click <strong>Send</strong> yourself — or copy the prepared draft directly from the side panel.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <strong>🔍 Surgical message control</strong><br />
+      Read currently loaded turns or scroll to load older history. Search full messages, toggle individual turns on the fly, and see exact size-limit omission badges before opening a tab.
+    </td>
+    <td width="50%" valign="top">
+      <strong>🔒 100% local, zero accounts</strong><br />
+      No ChatPassport account, no API keys, no backend server, no analytics. Everything runs in your browser, with light &amp; dark theme support built in.
+    </td>
+  </tr>
+</table>
+
+---
+
+## How It Works
+
+```mermaid
+flowchart LR
+  A["1. Capture<br/>Read loaded or scrolled history"] --> B["2. Curate<br/>Search, select turns & write next question"]
+  B --> C["3. Handoff<br/>Auto-fill destination editor or copy draft"]
+  C --> D["4. You Send<br/>Review draft & click Send yourself"]
+```
+
+<table>
+  <tr>
+    <td align="center" width="33%">
+      <img src="store-assets/screenshots/01-capture.png" alt="Step 1: Choose destination and capture mode" />
+      <br /><sub><strong>1. Capture &amp; choose destination</strong></sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="store-assets/screenshots/02-standby.png" alt="Step 2: Write your next question" />
+      <br /><sub><strong>2. Write your next question</strong></sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="store-assets/screenshots/03-review-and-send.png" alt="Step 3: Review the verified draft and send manually" />
+      <br /><sub><strong>3. Review the draft &amp; send</strong></sub>
+    </td>
+  </tr>
+</table>
+
+<p align="center"><sub>Screenshots use demonstration conversation data.</sub></p>
+
+1. **[Install ChatPassport](https://chromewebstore.google.com/detail/chatpassport/anmmhpfpbaafkgdhalbllhmaejeappmb)**, open a conversation on a [supported website](#supported-websites), and open the side panel *(if the tab was already open before install, refresh it once)*.
+2. Pick a destination assistant (or **new chat** on the current one) and a capture mode, then click **Prepare**.
+3. Review or search the captured transcript, select a range or toggle individual messages, write your next question, and confirm any older messages omitted by the character budget.
+4. Click **Open editable draft** to fill an empty destination editor automatically — or click **Copy prepared draft** right in the side panel to paste into an existing thread or any other tool. If automatic insertion cannot complete (or the site clears the box), use **Insert prepared draft** or **Copy prepared draft** on the destination card.
 
 > [!IMPORTANT]
-> ChatPassport does not click Send. Once context is inserted into the editor, the destination website may read or sync the draft before you send it.
+> **ChatPassport never clicks Send.** Once a draft is inserted into the destination editor, the destination website may read or sync it under its own policies before you send it.
 
-## Capture modes
+---
 
-| Mode | What it reads |
-| --- | --- |
-| **Quick** | Messages currently loaded on the page. No scrolling; coverage is marked partial. |
-| **Load history** (default) | Scrolls to collect older rendered messages, then restores your position. It can take up to two minutes. You can stop and keep the messages collected so far. |
+## Supported Websites
 
-Websites may hide, collapse, or virtualize history. A scan that reaches both page boundaries still cannot guarantee that every past message was captured. If a history scan reaches the capture limits, it keeps the most recent complete messages that fit and shows the reason in the side panel.
+| Assistant | Supported Domains |
+| :--- | :--- |
+| **ChatGPT** | `chatgpt.com`, `chat.openai.com` |
+| **Claude** | `claude.ai` |
+| **Gemini** | `gemini.google.com` |
+| **DeepSeek** | `chat.deepseek.com` |
 
-## What moves
+Requires a Chromium browser with Chrome Manifest V3 and Side Panel support. If a site layout change affects capture or insertion, please [open an issue](https://github.com/sxwangsxwang1/chatpassport/issues) with the website and steps to reproduce *(remove any private conversation text first)*.
 
-ChatPassport transfers message order and roles, plus the text, code, links, tables, and math it can read from the page. It keeps Markdown formatting where available. Images become text placeholders; image and file contents, artifacts, citation cards, and hidden reasoning are not included.
+---
 
-Before continuing, choose all captured messages, the latest 20, 50, or 100, or individual messages. A destination draft can contain up to **48,000 characters**, including your next question. ChatPassport shows the exact number of older selected messages that will be omitted and asks you to confirm before opening the draft. It never cuts a message in half or summarizes it with AI.
+## Capture Modes
 
-You can save the full captured preview as Markdown or a portable `.chatpassport.json` file, and import saved JSON later. JSON files have a **25 MiB** limit; pending transfers have a separate **9 MB** limit. See the [file format](docs/format.md) for compatibility details.
+| Mode | Behavior | Best for |
+| :--- | :--- | :--- |
+| **Load history** *(default)* | Scrolls to collect older rendered messages, then restores your scroll position (up to 2 minutes; stop any time to keep partial results). | Longer conversations with virtualized or lazy-loaded history. |
+| **Quick** | Reads only messages currently loaded in the DOM with no scrolling; coverage is marked partial. | Short chats or grabbing the latest turns instantly. |
 
-When a draft omits messages, you can download the complete captured transcript as Markdown and attach it yourself on the destination website. ChatPassport does not upload or verify that attachment; the draft still contains only the included messages.
+> Websites may hide, collapse, or virtualize older turns. Even reaching both page boundaries cannot guarantee every server-side message was rendered. When a history scan reaches message-count or file-size limits, ChatPassport keeps the most recent complete messages that fit and reports the limit in the side panel.
 
-## Privacy
+---
 
-Capture begins only when you click **Prepare for [destination]**. ChatPassport needs no account or API key and has no developer-operated server, analytics, or tracking. The selected conversation and your next question are held in `chrome.storage.session` for one pending transfer, bound to one destination tab, and expire after one hour. After insertion, the draft stays in the destination card's memory until you dismiss the card or the page unloads.
+## What Moves
 
-Loading history may trigger the source website's normal requests. After insertion, the destination website handles the draft under its own policies. Read the [privacy policy](PRIVACY.md) for details.
+<table>
+  <tr>
+    <th align="left" width="50%">✅ Included</th>
+    <th align="left" width="50%">⛔ Not Included</th>
+  </tr>
+  <tr>
+    <td valign="top">
+      <ul>
+        <li>Message order and roles (<code>user</code>, <code>assistant</code>, <code>system</code>)</li>
+        <li>Rich Markdown: headings, lists, links, GFM tables, fenced code blocks (with language tags), and TeX math (<code>$...$</code> / <code>$$...$$</code>)</li>
+        <li>Exact plain-text formatting for your own messages</li>
+        <li>Text placeholders for non-decorative images (<code>[image: alt]</code> or <code>[image]</code>)</li>
+      </ul>
+    </td>
+    <td valign="top">
+      <ul>
+        <li>Raw image bytes and uploaded file attachments</li>
+        <li>Interactive artifacts and citation cards</li>
+        <li>Hidden reasoning / chain-of-thought blocks</li>
+        <li>AI-generated summaries (ChatPassport never rewrites or cuts a message in half)</li>
+      </ul>
+    </td>
+  </tr>
+</table>
 
-## Supported websites
+### Limits & Portable Exports
 
-| Assistant | Website |
-| --- | --- |
-| ChatGPT | `chatgpt.com`, `chat.openai.com` |
-| Claude | `claude.ai` |
-| Gemini | `gemini.google.com` |
-| DeepSeek | `chat.deepseek.com` |
+| Setting | Limit / Behavior |
+| :--- | :--- |
+| **Destination draft budget** | Up to **48,000 characters** total, including up to **8,000 characters** for your next question. Older selected messages beyond the budget are flagged with preview badges and require explicit confirmation before opening. |
+| **Complete transcript fallback** | Whenever messages are omitted or excluded, download the full captured transcript as **Markdown** to attach manually at the destination *(ChatPassport does not upload or verify attachments)*. |
+| **Portable archive** | Export & re-import `.chatpassport.json` (**25 MiB** limit) or export Markdown. See [docs/format.md](docs/format.md) for the `1.0` schema. |
+| **Pending transfer buffer** | Up to **9 MB** in `chrome.storage.session`, bound to a single destination tab. |
 
-A browser with Chrome Manifest V3 and side panel support is required. If a website layout change breaks capture or insertion, [open an issue](https://github.com/sxwangsxwang1/chatpassport/issues) with the website and steps to reproduce. Remove private conversation text first.
+---
 
-## Build from source
+## Privacy & Control
 
-Use Node.js 22 and pnpm. The repository pins pnpm 11.19.0.
+- **Explicit activation only** — Reading begins only when you click **Prepare**.
+- **Zero backend** — No developer-operated servers, accounts, API keys, analytics, or tracking.
+- **Short-lived & tab-bound** — A pending transfer lives only in `chrome.storage.session`, is bound to one destination tab, expires automatically after **1 hour**, and clears on completion, tab close, or manual clear.
+- **In-memory recovery** — After insertion, the destination card retains the prepared draft only in page memory for recovery copying until you dismiss the card or the page unloads.
+
+Read the full [Privacy Policy](PRIVACY.md) for details.
+
+---
+
+## Build from Source
+
+Requires **Node.js 22+** and **pnpm** (`packageManager` pins `pnpm@11.19.0`).
 
 ```bash
 pnpm install
 pnpm check
 ```
 
-`pnpm check` runs type checking, tests, and a production build. To try the extension locally, open `chrome://extensions`, enable **Developer mode**, choose **Load unpacked**, and select `.output/chrome-mv3`. Use `pnpm dev` for development or `pnpm release:chrome` to create an upload ZIP in `release/`.
+- `pnpm check` runs TypeScript type checking (`tsc --noEmit`), Vitest unit tests, and a production build.
+- Load `.output/chrome-mv3` via `chrome://extensions` → **Developer mode** → **Load unpacked**.
+- Use `pnpm dev` for live development or `pnpm release:chrome` to package an uploadable ZIP in `release/`.
 
-## Star history
+---
 
-If ChatPassport is useful, give the project a star. The chart below shows new stars per UTC day over the past 60 days.
+## Star History
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/star-history-dark.svg" />
-  <img alt="ChatPassport daily GitHub star growth" src="assets/star-history.svg" />
-</picture>
+Thank you to everyone who has starred and shared ChatPassport!
+
+<div align="center">
+  <a href="https://star-history.com/#sxwangsxwang1/chatpassport&Date">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="assets/star-history-dark.svg" />
+      <img alt="ChatPassport cumulative GitHub star history" src="assets/star-history.svg" width="840" />
+    </picture>
+  </a>
+</div>
+
+<br />
 
 <div align="center">
 
-[⭐ Star ChatPassport](https://github.com/sxwangsxwang1/chatpassport) · [View stargazers](https://github.com/sxwangsxwang1/chatpassport/stargazers)
+[![Star ChatPassport](https://img.shields.io/github/stars/sxwangsxwang1/chatpassport?style=social)](https://github.com/sxwangsxwang1/chatpassport/stargazers)
+&nbsp;·&nbsp;
+[⭐ Star on GitHub](https://github.com/sxwangsxwang1/chatpassport)
+&nbsp;·&nbsp;
+[View Stargazers](https://github.com/sxwangsxwang1/chatpassport/stargazers)
+&nbsp;·&nbsp;
+[Report an Issue](https://github.com/sxwangsxwang1/chatpassport/issues)
 
 </div>
