@@ -44,6 +44,15 @@ describe('draft preservation', () => {
     expect(tools.find()?.classList.contains('ql-editor')).toBe(true);
     dom.window.close();
   });
+  it('selects localized DeepSeek textarea editors including non-English placeholders', () => {
+    const zh = setup('<textarea placeholder="给 DeepSeek 发送消息"></textarea>', 'https://chat.deepseek.com/');
+    expect(zh.tools.find()?.tagName).toBe('TEXTAREA');
+    zh.dom.window.close();
+
+    const byId = setup('<textarea id="chat-input" placeholder="问点什么"></textarea>', 'https://chat.deepseek.com/');
+    expect(byId.tools.find()?.id).toBe('chat-input');
+    byId.dom.window.close();
+  });
   it('refuses two visible composer candidates', () => {
     const { dom, tools } = setup('<textarea id="prompt-textarea">one</textarea><textarea id="prompt-textarea">two</textarea>');
     expect(tools.find()).toBeUndefined();

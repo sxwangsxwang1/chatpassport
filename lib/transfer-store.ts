@@ -49,7 +49,7 @@ export async function createPending(
   if (passportSize(passport) > SESSION_MAX_BYTES) throw new Error('This transfer exceeds the 9 MB limit.');
   if (currentRequestInput !== undefined && typeof currentRequestInput !== 'string') throw new Error('The next question is invalid.');
   const currentRequest = currentRequestInput;
-  const plan = currentRequest === undefined ? undefined : planContinuation(passport, currentRequest);
+  const plan = currentRequest === undefined ? undefined : planContinuation(passport, currentRequest, target);
   if (plan?.status === 'error') throw new Error(plan.message);
   if (plan?.status === 'composed' && plan.omittedMessageCount > 0 && approveOmissionsInput !== true) {
     throw new Error(`Confirm the ${plan.omittedMessageCount} older messages that will be omitted before opening the draft.`);

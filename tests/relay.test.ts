@@ -4,6 +4,8 @@ import {
   canCompleteRelay,
   composeRelayResponse,
   createRelayResponse,
+  estimateContinuation,
+  planContinuation,
   RELAY_MAX_DRAFT_CHARS,
   RELAY_MAX_REQUEST_CHARS,
 } from "../lib/relay";
@@ -146,5 +148,42 @@ describe("automatic relay authorization", () => {
     expect(canCompleteRelay(pending, "transfer-1", sender("https://chat.deepseek.com/"))).toBe(true);
     expect(canCompleteRelay(pending, "another-id", sender("https://chat.deepseek.com/"))).toBe(false);
     expect(canCompleteRelay(pending, "transfer-1", sender("https://chatgpt.com/"))).toBe(false);
+  });
+
+  it("matches planContinuation counts and character length identically in estimateContinuation", () => {
+    const manyMessages = {
+      ...pending.passport,
+      messages: Array.from({ length: 30 }, (_, index) => ({
+        id: `m-${index}`,
+        role: index % 2 === 0 ? "user" as const : "assistant" as const,
+        content: [{ type: "text" as const, text: `Turn ${index}: ${"x".repeat(2500)} <message>` }],
+      })),
+    };
+    for (const target of ["chatgpt", "claude"] as const) {
+      for (const request of ["Short question", "Check </current_request> tag\nwith lines", " ", "x".repeat(RELAY_MAX_REQUEST_CHARS + 1)]) {
+        const estimated = estimateContinuation(manyMessages, request, target);
+        const planned = planContinuation(manyMessages, request, target);
+        if (planned.status === "composed") {
+          expect(estimated).toEqual({
+            status: "composed",
+            includedMessageCount: planned.includedMessageCount,
+            omittedMessageCount: planned.omittedMessageCount,
+            characterCount: planned.characterCount,
+          });
+        } else {
+          expect(estimated).toEqual(planned);
+        }
+      }
+    }
+  });
+
+  it("uses same-platform wording when continuing on the same provider", () => {
+    const samePlatform: PendingTransfer = { ...pending, target: "chatgpt" };
+    const response = composeRelayResponse(samePlatform, "transfer-1", "Continue here", sender("https://chatgpt.com/"));
+    expect(response.status).toBe("composed");
+    if (response.status === "composed") {
+      expect(response.text).toContain("I am continuing a previous conversation.");
+      expect(response.text).not.toContain("another AI assistant");
+    }
   });
 });

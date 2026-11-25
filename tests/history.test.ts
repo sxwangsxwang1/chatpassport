@@ -98,7 +98,7 @@ function virtualPage(lazy = false, repeated = false, recycled = false, staticDom
   return { dom, area, original: top };
 }
 
-function providerMarkerPage(provider: 'deepseek' | 'gemini', marker: 'class' | 'data-test-id' | 'element') {
+function providerMarkerPage(provider: 'deepseek' | 'gemini', marker: 'class' | 'ds-message' | 'data-test-id' | 'element') {
   const url = provider === 'deepseek'
     ? 'https://chat.deepseek.com/a/chat/s/test'
     : 'https://gemini.google.com/app/test';
@@ -109,7 +109,14 @@ function providerMarkerPage(provider: 'deepseek' | 'gemini', marker: 'class' | '
   let furthest = top;
   const row = (index: number) => {
     const role = index % 2 === 0 ? 'user' : 'assistant';
-    if (provider === 'deepseek') return `<div data-message-id="m${index}" class="message_${role}"><p>Message ${index}</p></div>`;
+    if (provider === 'deepseek') {
+      if (marker === 'ds-message') {
+        return role === 'user'
+          ? `<div data-message-id="m${index}" class="ds-message"><div><div class="ds-collapsible-text">Message ${index}</div></div></div>`
+          : `<div data-message-id="m${index}" class="ds-message"><div class="ds-markdown ds-assistant-message-main-content"><p>Message ${index}</p></div></div>`;
+      }
+      return `<div data-message-id="m${index}" class="message_${role}"><p>Message ${index}</p></div>`;
+    }
     const tag = role === 'user' ? 'user-query' : 'model-response';
     return marker === 'element'
       ? `<${tag} data-message-id="m${index}"><p>Message ${index}</p></${tag}>`
@@ -166,6 +173,7 @@ describe('history capture integration', () => {
   });
   it.each([
     ['deepseek', 'class'],
+    ['deepseek', 'ds-message'],
     ['gemini', 'data-test-id'],
     ['gemini', 'element'],
   ] as const)('scrolls the actual %s conversation for %s markers', async (provider, marker) => {

@@ -169,7 +169,7 @@ describe('guided capture and capacity estimates', () => {
       expect.objectContaining({ messages: [passport.messages[37]] }), 'claude', 'Continue', false,
     );
   });
-  it('shows later full messages and a complete transcript option when the draft omits history', async () => {
+  it('shows later full messages, omission badges, and a complete transcript option when the draft omits history', async () => {
     const large = { ...passport, messages: passport.messages.map((message) => ({ ...message, content: [{ type: 'text' as const, text: `Message-${message.id} ${'x'.repeat(3000)}` }] })) };
     mocks.extract.mockResolvedValue(large);
     await click('Prepare for Claude');
@@ -178,5 +178,51 @@ describe('guided capture and capacity estimates', () => {
     expect(document.querySelectorAll('.message-preview li')).toHaveLength(50);
     await writeQuestion('Continue');
     expect(button('Download complete transcript to attach')).toBeTruthy();
+    const badges = document.querySelectorAll('.omitted-badge');
+    expect(badges.length).toBeGreaterThan(0);
+    expect(document.querySelectorAll('.message-preview li')[0]?.className).toContain('omitted');
+    expect(document.querySelectorAll('.message-preview li')[49]?.className ?? '').not.toContain('omitted');
+  });
+
+  it('copies the composed draft for a pending transfer with a pre-written question and omissions', async () => {
+    const large = { ...passport, messages: passport.messages.map((message) => ({ ...message, content: [{ type: 'text' as const, text: `Message-${message.id} ${'x'.repeat(3000)}` }] })) };
+    const preparedPending = { ...pending, passport: large, currentRequest: 'Saved question', approvedOmittedMessageCount: 35 };
+    mocks.get.mockResolvedValue(preparedPending);
+    await act(async () => { mocks.add.mock.calls[0]![0](); });
+    await click('Copy saved draft');
+    const copied = mocks.clipboard.mock.calls[0]?.[0] as string;
+    expect(copied).toContain('<current_request>\nSaved question\n</current_request>');
+    expect(copied.length).toBeLessThanOrEqual(48_000);
+  });
+
+  it('copies a prepared draft directly from the side panel without opening a tab', async () => {
+    await click('Prepare for Claude');
+    await writeQuestion('Direct copy question');
+    await click('Copy prepared draft');
+    const copied = mocks.clipboard.mock.calls[0]?.[0] as string;
+    expect(copied).toContain('Message-49');
+    expect(copied).toContain('<current_request>\nDirect copy question\n</current_request>');
+    expect(mocks.save).not.toHaveBeenCalled();
+  });
+
+  it('switches to custom mode automatically when toggling a message checkbox and supports matching bulk actions', async () => {
+    await click('Prepare for Claude');
+    const firstCheckbox = document.querySelector<HTMLInputElement>('.message-preview li input')!;
+    expect(firstCheckbox.disabled).toBe(false);
+    await act(async () => { firstCheckbox.click(); });
+    expect(document.querySelector<HTMLSelectElement>('#message-limit')?.value).toBe('custom');
+    expect(document.body.textContent).toContain('49 of 50 messages selected');
+
+    await act(async () => {
+      const search = document.querySelector<HTMLInputElement>('#message-search')!;
+      Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, 'value')!.set!.call(search, 'Message-1');
+      search.dispatchEvent(new dom.window.InputEvent('input', { bubbles: true, data: 'Message-1', inputType: 'insertText' }));
+      search.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+    });
+    // Message-1 plus Message-10..Message-19 => 11 matches
+    await click('Deselect matching (11)');
+    expect(document.body.textContent).toContain('38 of 50 messages selected');
+    await click('Select matching (11)');
+    expect(document.body.textContent).toContain('49 of 50 messages selected');
   });
 });

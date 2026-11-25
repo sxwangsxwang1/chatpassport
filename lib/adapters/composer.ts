@@ -7,7 +7,7 @@ export function composerToolsOnPage() {
     // Gemini also has a visible .ql-clipboard contenteditable inside rich-textarea.
     // Target the actual editor so the clipboard cannot make the match ambiguous.
     'gemini.google.com': ['rich-textarea .ql-editor[contenteditable="true"]', '.ql-editor[contenteditable="true"]'],
-    'chat.deepseek.com': ['.ql-editor[contenteditable="true"]', 'textarea[placeholder*="message" i]'],
+    'chat.deepseek.com': ['.ql-editor[contenteditable="true"]', '#chat-input', 'textarea[placeholder*="message" i]', 'textarea'],
   };
   const selectors = selectorsByHost[location.hostname] ?? [];
   function find(): HTMLElement | undefined {

@@ -2,10 +2,20 @@ import { browser } from "wxt/browser";
 import { detectProvider } from "./core";
 import { extractConversationFromPage } from "./adapters/page";
 import { mergeHistory, scrollHistoryOnPage } from "./history";
-import { fitCapturedPassport, passportSchema, type Passport, type PassportMessage, type Provider } from "./passport";
+import { fitCapturedPassport, PASSPORT_MAX_BYTES, passportSchema, type Passport, type PassportMessage, type Provider } from "./passport";
 
 const SCROLL_POLL_MS = 600;
 const BOUNDARY_IDLE_MS = 12_000;
+
+/** Rigorous UTF-8 JSON byte upper bound (each UTF-16 unit expands to at most 6 bytes as \uXXXX). */
+function estimatedMaxJsonBytes(messages: PassportMessage[], title: string, url: string): number {
+  let total = 4096 + (title.length + url.length) * 6;
+  for (const message of messages) {
+    total += 240;
+    for (const part of message.content) total += part.text.length * 6;
+  }
+  return total;
+}
 
 export interface ActiveTabContext { id: number; url: string; provider: Provider | null }
 export async function getActiveTabContext(): Promise<ActiveTabContext> {
@@ -90,7 +100,7 @@ export async function extractActiveConversation(options: {
       countLimitReached = true;
       if (direction === 'up') ended = true;
     }
-    if (messages.length) {
+    if (messages.length && estimatedMaxJsonBytes(messages, title, tab.url) > PASSPORT_MAX_BYTES) {
       const fitted = fitCapturedPassport(makePassport());
       if (fitted.messages.length < messages.length) {
         messages = messages.slice(-fitted.messages.length);

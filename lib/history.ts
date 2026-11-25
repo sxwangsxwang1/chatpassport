@@ -62,7 +62,7 @@ export function scrollHistoryOnPage(action: 'start' | 'up' | 'down' | 'restore',
       + '.font-claude-response, .font-claude-message, '
       + 'user-query, model-response, [data-test-id="user-query"], [data-test-id="model-response"], '
       + '[class*="user-message"], [class*="assistant-message"], '
-      + '[class*="message_user"], [class*="message_assistant"]',
+      + '[class*="message_user"], [class*="message_assistant"], .ds-message',
     ));
     if (!anchors.length) throw new Error('No messages were found. Open a conversation and try again.');
     const scores = new Map<HTMLElement, number>();

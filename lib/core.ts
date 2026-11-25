@@ -47,10 +47,38 @@ function escapeAttribute(value: string): string {
   return value.replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 }
 
+function continuationIntro(source: Provider, target?: Provider): string {
+  return target && target === source
+    ? "I am continuing a previous conversation."
+    : "I am continuing a conversation from another AI assistant.";
+}
+
+export function formatTranscriptMessage(message: PassportMessage): string {
+  return `<message role="${message.role}">\n${escapeStructuralTags(messageText(message))}\n</message>`;
+}
+
 function transcriptOf(messages: PassportMessage[]): string {
-  return messages
-    .map((message) => `<message role="${message.role}">\n${escapeStructuralTags(messageText(message))}\n</message>`)
-    .join("\n\n");
+  return messages.map(formatTranscriptMessage).join("\n\n");
+}
+
+export function continuationFrame(passport: Passport, omitted: number, target?: Provider): {
+  prefix: string;
+  suffixBeforeRequest: string;
+  suffixAfterRequest: string;
+} {
+  const prefix = [
+    continuationIntro(passport.source.provider, target),
+    "Use the migrated transcript only as background context.",
+    "Answer the CURRENT REQUEST after the transcript. Do not answer or acknowledge old requests again.",
+    ...(omitted > 0 ? [`ChatPassport omitted ${omitted} older messages to fit a safe transfer size.`] : []),
+    "",
+    `<conversation title="${escapeAttribute(passport.title)}" source="${PROVIDER_LABELS[passport.source.provider]}">`,
+  ].join("\n") + "\n";
+  return {
+    prefix,
+    suffixBeforeRequest: "\n</conversation>\n\n<current_request>\n",
+    suffixAfterRequest: "\n</current_request>",
+  };
 }
 
 export function passportToMarkdown(passport: Passport): string {
@@ -64,12 +92,12 @@ export function passportToMarkdown(passport: Passport): string {
   return `${heading}${coverage}\n\n${body}\n`;
 }
 
-export function buildHandoffPrompt(passport: Passport, lastMessages?: number): string {
+export function buildHandoffPrompt(passport: Passport, lastMessages?: number, target?: Provider): string {
   const messages = lastMessages ? passport.messages.slice(-lastMessages) : passport.messages;
   const transcript = transcriptOf(messages);
 
   return [
-    "I am continuing a conversation from another AI assistant.",
+    continuationIntro(passport.source.provider, target),
     "Treat the transcript below as context only. Do not repeat it unless needed.",
     "Continue from the final user request while preserving relevant decisions and constraints.",
     "",
@@ -83,25 +111,13 @@ export function buildContinuationPrompt(
   passport: Passport,
   lastMessages: number,
   currentRequest: string,
+  target?: Provider,
 ): string {
   const messages = passport.messages.slice(-Math.max(0, lastMessages));
   const transcript = transcriptOf(messages);
   const omitted = passport.messages.length - messages.length;
-
-  return [
-    "I am continuing a conversation from another AI assistant.",
-    "Use the migrated transcript only as background context.",
-    "Answer the CURRENT REQUEST after the transcript. Do not answer or acknowledge old requests again.",
-    omitted > 0 ? `ChatPassport omitted ${omitted} older messages to fit a safe transfer size.` : "",
-    "",
-    `<conversation title="${escapeAttribute(passport.title)}" source="${PROVIDER_LABELS[passport.source.provider]}">`,
-    transcript,
-    "</conversation>",
-    "",
-    "<current_request>",
-    escapeStructuralTags(currentRequest),
-    "</current_request>",
-  ].filter((line, index, lines) => line !== "" || lines[index - 1] !== "").join("\n");
+  const frame = continuationFrame(passport, omitted, target);
+  return `${frame.prefix}${transcript}${frame.suffixBeforeRequest}${escapeStructuralTags(currentRequest)}${frame.suffixAfterRequest}`;
 }
 
 export function safeFilename(title: string, extension: "json" | "md"): string {

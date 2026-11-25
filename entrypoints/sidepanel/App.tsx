@@ -26,7 +26,12 @@ import {
   type Passport,
   type Provider,
 } from "../../lib/passport";
-import { planContinuation, RELAY_MAX_DRAFT_CHARS, RELAY_MAX_REQUEST_CHARS } from "../../lib/relay";
+import {
+  estimateContinuation,
+  planContinuation,
+  RELAY_MAX_DRAFT_CHARS,
+  RELAY_MAX_REQUEST_CHARS,
+} from "../../lib/relay";
 
 type MessageLimit = "all" | "20" | "50" | "100" | "custom";
 const PREVIEW_PAGE_SIZE = 30;
@@ -66,23 +71,37 @@ export default function App() {
   const [notice, setNotice] = useState<string>("");
   const [noticeKind, setNoticeKind] = useState<"info" | "success" | "error">("info");
 
+  const selectedTarget = target;
   const previewSize = useMemo(() => passport ? passportSize(passport) : 0, [passport]);
+  const pendingSize = useMemo(() => pending ? passportSize(pending.passport) : 0, [pending]);
+  const selectedOrder = useMemo(() => {
+    if (!passport) return [] as number[];
+    if (limit === "all") return passport.messages.map((_, index) => index);
+    if (limit === "custom") {
+      return passport.messages.flatMap((_, index) => selectedIndexes.has(index) ? [index] : []);
+    }
+    const start = Math.max(0, passport.messages.length - Number(limit));
+    return passport.messages.flatMap((_, index) => index >= start ? [index] : []);
+  }, [passport, limit, selectedIndexes]);
+  const activeSelectedSet = useMemo(() => new Set(selectedOrder), [selectedOrder]);
   const transferablePassport = useMemo(() => {
     if (!passport) return null;
     if (limit === "all") return passport;
-    const messages = limit === "custom"
-      ? passport.messages.filter((_, index) => selectedIndexes.has(index))
-      : passport.messages.slice(-Number(limit));
+    const messages = selectedOrder.map((index) => passport.messages[index]!);
     return messages.length ? { ...passport, messages } : null;
-  }, [passport, limit, selectedIndexes]);
+  }, [passport, limit, selectedOrder]);
   const transferableSize = useMemo(
     () => transferablePassport ? passportSize(transferablePassport) : 0,
     [transferablePassport],
   );
   const plan = useMemo(
-    () => transferablePassport ? planContinuation(transferablePassport, nextQuestion) : null,
-    [transferablePassport, nextQuestion],
+    () => transferablePassport ? estimateContinuation(transferablePassport, nextQuestion, selectedTarget) : null,
+    [transferablePassport, nextQuestion, selectedTarget],
   );
+  const omittedIndexes = useMemo(() => {
+    if (plan?.status !== "composed" || plan.omittedMessageCount <= 0) return new Set<number>();
+    return new Set(selectedOrder.slice(0, plan.omittedMessageCount));
+  }, [plan, selectedOrder]);
   const previewMessages = useMemo(() => {
     if (!passport) return [];
     const query = messageSearch.trim().toLocaleLowerCase();
@@ -91,9 +110,6 @@ export default function App() {
       return !query || text.toLocaleLowerCase().includes(query) ? [{ index, message, text }] : [];
     });
   }, [passport, messageSearch]);
-  const context = useMemo(() => {
-    return pending ? buildHandoffPrompt(pending.passport) : "";
-  }, [pending]);
 
   function showNotice(message: string, kind: "info" | "success" | "error" = "info") {
     setNotice(message);
@@ -189,16 +205,42 @@ export default function App() {
     }
   }
 
+  async function copyPreparedDraft() {
+    if (!transferablePassport || plan?.status !== "composed") return;
+    if (plan.omittedMessageCount > 0 && !omissionsApproved) return;
+    const composed = planContinuation(transferablePassport, nextQuestion, selectedTarget);
+    if (composed.status !== "composed") {
+      showNotice(composed.message, "error");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(composed.text);
+      showNotice("Prepared draft copied. Paste it into any assistant and review before sending.", "success");
+    } catch {
+      showNotice("Clipboard access failed. Export the conversation as Markdown instead.", "error");
+    }
+  }
+
   async function copyContext() {
-    if (!context) return;
+    if (!pending) return;
     try {
       const stored = await getPendingTransfer();
-      if (!stored || stored.transferId !== pending?.transferId) {
+      if (!stored || stored.transferId !== pending.transferId) {
         await refreshContext();
         showNotice("This transfer expired or was replaced. Start a new transfer.", "error");
         return;
       }
-      const currentContext = buildHandoffPrompt(stored.passport);
+      if (stored.currentRequest !== undefined) {
+        const composed = planContinuation(stored.passport, stored.currentRequest, stored.target);
+        if (composed.status !== "composed") {
+          showNotice(composed.message, "error");
+          return;
+        }
+        await navigator.clipboard.writeText(composed.text);
+        showNotice("Prepared draft copied. Paste it into any assistant and review before sending.", "success");
+        return;
+      }
+      const currentContext = buildHandoffPrompt(stored.passport, undefined, stored.target);
       if (currentContext.length > RELAY_MAX_DRAFT_CHARS) {
         showNotice("This saved transfer is too large to copy. Prepare a new transfer with fewer messages, or export the preview as a file.", "error");
         return;
@@ -243,19 +285,21 @@ export default function App() {
 
   const sourceLabel = passport ? PROVIDER_LABELS[passport.source.provider] : null;
   const sourceProvider = passport?.source.provider ?? activeProvider;
-  const selectedTarget = target;
   const selectedMessageCount = transferablePassport?.messages.length ?? 0;
-  function isSelected(index: number): boolean {
-    if (limit === "all") return true;
-    if (limit === "custom") return selectedIndexes.has(index);
-    return index >= (passport?.messages.length ?? 0) - Number(limit);
-  }
   function selectMessage(index: number, checked: boolean) {
-    setSelectedIndexes((current) => {
-      const next = new Set(current);
-      if (checked) next.add(index); else next.delete(index);
-      return next;
-    });
+    const next = new Set(activeSelectedSet);
+    if (checked) next.add(index); else next.delete(index);
+    setSelectedIndexes(next);
+    if (limit !== "custom") setLimit("custom");
+    setOmissionsApproved(false);
+  }
+  function setMatchingSelection(checked: boolean) {
+    const next = new Set(activeSelectedSet);
+    for (const item of previewMessages) {
+      if (checked) next.add(item.index); else next.delete(item.index);
+    }
+    setSelectedIndexes(next);
+    if (limit !== "custom") setLimit("custom");
     setOmissionsApproved(false);
   }
   const currentLabel = activeProvider ? PROVIDER_LABELS[activeProvider] : "Unsupported page";
@@ -281,12 +325,14 @@ export default function App() {
           <div className="eyebrow">Ready in another tab</div>
           <h2>{pending.passport.title}</h2>
           <p>
-            {pending.passport.messages.length} messages · {formatBytes(passportSize(pending.passport))}
+            {pending.passport.messages.length} messages · {formatBytes(pendingSize)}
             <br />Destination: {PROVIDER_LABELS[pending.target]}
             <br />{pending.currentRequest ? "The prepared draft will appear in the destination editor. Review it before sending." : "Type a new question on the destination, then add context to the draft."}
           </p>
           <div className="button-row">
-            <button className="secondary" onClick={copyContext} disabled={busy}>Copy saved context</button>
+            <button className="secondary" onClick={copyContext} disabled={busy}>
+              {pending.currentRequest !== undefined ? "Copy saved draft" : "Copy saved context"}
+            </button>
             <button className="text-button danger" onClick={clearPending} disabled={busy}>Clear</button>
           </div>
         </section>
@@ -299,7 +345,7 @@ export default function App() {
           {PROVIDERS.map((provider) => (
             <button key={provider} disabled={busy} aria-pressed={selectedTarget === provider}
               className={selectedTarget === provider ? "provider selected" : "provider"}
-              onClick={() => setTarget(provider)}>{PROVIDER_LABELS[provider]}{provider === sourceProvider ? " · new chat" : ""}</button>
+              onClick={() => { if (provider !== target) { setTarget(provider); setOmissionsApproved(false); } }}>{PROVIDER_LABELS[provider]}{provider === sourceProvider ? " · new chat" : ""}</button>
           ))}
         </div>
         {!activeProvider && !passport && <p>Open a conversation on ChatGPT, Claude, Gemini, or DeepSeek to begin. You can also import a saved file below.</p>}
@@ -354,17 +400,24 @@ export default function App() {
             <label className="field-label" htmlFor="message-search">Find a message</label>
             <input id="message-search" type="search" value={messageSearch} onChange={(event) => { setMessageSearch(event.target.value); setVisibleCount(PREVIEW_PAGE_SIZE); }} placeholder="Search conversation text" />
             <p>{previewMessages.length} matching messages. Showing full text in capture order.</p>
+            {messageSearch.trim() && previewMessages.length > 0 && <div className="selection-actions">
+              <button className="text-button" disabled={busy} onClick={() => setMatchingSelection(true)}>Select matching ({previewMessages.length})</button>
+              <button className="text-button" disabled={busy} onClick={() => setMatchingSelection(false)}>Deselect matching ({previewMessages.length})</button>
+            </div>}
             <ol>
-              {previewMessages.slice(0, visibleCount).map(({ index, message, text }) => <li key={`${index}-${message.id}`}>
-                <label className="message-heading">
-                  <input type="checkbox" checked={isSelected(index)} disabled={busy || limit !== "custom"} onChange={(event) => selectMessage(index, event.target.checked)} />
-                  <strong>{message.role === "assistant" ? "Assistant" : message.role === "user" ? "You" : "System"} · {index + 1}</strong>
-                </label>
-                <p>{text}</p>
-              </li>)}
+              {previewMessages.slice(0, visibleCount).map(({ index, message, text }) => {
+                const omittedByBudget = omittedIndexes.has(index);
+                return <li key={`${index}-${message.id}`} className={omittedByBudget ? "omitted" : undefined}>
+                  <label className="message-heading">
+                    <input type="checkbox" checked={activeSelectedSet.has(index)} disabled={busy} onChange={(event) => selectMessage(index, event.target.checked)} />
+                    <strong>{message.role === "assistant" ? "Assistant" : message.role === "user" ? "You" : "System"} · {index + 1}</strong>
+                    {omittedByBudget && <span className="omitted-badge">Omitted · size limit</span>}
+                  </label>
+                  <p>{text}</p>
+                </li>;
+              })}
             </ol>
             {visibleCount < previewMessages.length && <button className="secondary preview-more" onClick={() => setVisibleCount((count) => count + PREVIEW_PAGE_SIZE)}>Show next {Math.min(PREVIEW_PAGE_SIZE, previewMessages.length - visibleCount)} messages</button>}
-            {limit !== "custom" && <p>Choose “Choose individual messages” above to change the checked messages.</p>}
           </details>
           {selectedMessageCount === 0 && <p className="warning">Select at least one message to continue.</p>}
           <label className="field-label" htmlFor="next-question">Your next question</label>
@@ -392,6 +445,9 @@ export default function App() {
           {transferableSize > SESSION_WARN_BYTES && <p className="warning">Large transfer. Select fewer messages above or export a file.</p>}
           <button className="primary" onClick={prepareTransfer} disabled={busy || transferableSize > SESSION_MAX_BYTES || plan?.status !== "composed" || (plan.omittedMessageCount > 0 && !omissionsApproved)}>
             {busy ? "Opening…" : `Open editable draft in ${PROVIDER_LABELS[selectedTarget]}`}
+          </button>
+          <button className="secondary copy-draft-button" onClick={copyPreparedDraft} disabled={busy || plan?.status !== "composed" || (plan.omittedMessageCount > 0 && !omissionsApproved)}>
+            Copy prepared draft
           </button>
           <button className="text-button reread" disabled={busy} onClick={() => { setPassport(null); setNotice(""); }}>Read another conversation / change capture mode</button>
           <p className="privacy-note">The draft will be inserted automatically on the destination page. Review it, then click Send yourself. The website can read the draft once inserted.</p>

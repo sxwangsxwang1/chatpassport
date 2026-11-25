@@ -194,10 +194,14 @@ describe("page adapters", () => {
     expect(result.messages[1]?.role).toBe("assistant");
   });
 
-  it("extracts DeepSeek's current user bubble and assistant body", () => {
+  it("extracts DeepSeek's current user bubble and assistant body without sibling reasoning blocks", () => {
     const result = extract(`
       <div class="ds-message"><div><div class="ds-collapsible-text">Test question</div></div><button>Copy</button></div>
-      <div class="ds-message"><div class="ds-markdown ds-assistant-message-main-content"><p>Test answer</p></div><button>Copy</button></div>
+      <div class="ds-message">
+        <div class="ds-think-content"><p>Internal chain of thought</p></div>
+        <div class="ds-markdown ds-assistant-message-main-content"><p>Test answer</p></div>
+        <button>Copy</button>
+      </div>
     `, "https://chat.deepseek.com/a/chat/s/test", "Test - DeepSeek");
 
     expect(result.messages.map((message) => [message.role, message.content[0]?.text])).toEqual([

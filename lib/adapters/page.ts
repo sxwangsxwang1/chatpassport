@@ -137,12 +137,21 @@ export function extractConversationFromPage(): PageExtraction {
     // Select the message body, rather than just its first .prose descendant.
     const claudeBodySelector = '[data-testid="user-message"], .font-claude-response, .font-claude-message';
     const chatgptBodySelector = '[data-user-message-bubble], [data-markdown-text-style="assistant-message"]';
+    const deepseekBody = provider === "deepseek"
+      ? role === "assistant"
+        ? element.querySelector(':scope > .ds-assistant-message-main-content')
+        : role === "user"
+          ? element.querySelector('.ds-collapsible-text')
+          : null
+      : null;
     const content = provider === "claude"
       ? element.matches(claudeBodySelector)
         ? element
         : element.querySelector(claudeBodySelector) ?? element
       : provider === "chatgpt" && element.querySelectorAll(chatgptBodySelector).length === 1
         ? element.querySelector(chatgptBodySelector)!
+      : deepseekBody
+        ? deepseekBody
       : element.querySelectorAll(".markdown, .prose, .message-content, .whitespace-pre-wrap").length === 1
         ? element.querySelector(".markdown, .prose, .message-content, .whitespace-pre-wrap")!
         : element;

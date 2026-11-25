@@ -1,7 +1,6 @@
-import { buildContinuationPrompt, detectProvider } from "./core";
-import { PENDING_TTL_MS } from "./core";
+import { continuationFrame, detectProvider, escapeStructuralTags, formatTranscriptMessage, PENDING_TTL_MS } from "./core";
 import type { PendingTransfer } from "./pending";
-import { PROVIDERS, type Provider, type Passport } from "./passport";
+import { PROVIDERS, type PassportMessage, type Provider, type Passport } from "./passport";
 
 export const GET_PENDING_RELAY = "chatpassport:get-pending-relay";
 export const COMPOSE_PENDING_RELAY = "chatpassport:compose-pending-relay";
@@ -140,6 +139,35 @@ export function createRelayResponse(
   };
 }
 
+export interface ContinuationEstimate {
+  status: "composed";
+  includedMessageCount: number;
+  omittedMessageCount: number;
+  characterCount: number;
+}
+
+interface PreparedTranscript {
+  blocks: string[];
+  suffixLengths: number[];
+}
+
+const transcriptCache = new WeakMap<PassportMessage[], PreparedTranscript>();
+
+function prepareTranscript(messages: PassportMessage[]): PreparedTranscript {
+  const cached = transcriptCache.get(messages);
+  if (cached && cached.blocks.length === messages.length) return cached;
+  const blocks = messages.map(formatTranscriptMessage);
+  const total = blocks.length;
+  const suffixLengths = new Array<number>(total + 1);
+  suffixLengths[0] = 0;
+  for (let count = 1; count <= total; count++) {
+    suffixLengths[count] = blocks[total - count]!.length + (count > 1 ? 2 + suffixLengths[count - 1]! : 0);
+  }
+  const prepared = { blocks, suffixLengths };
+  transcriptCache.set(messages, prepared);
+  return prepared;
+}
+
 export function composeRelayResponse(
   pending: PendingTransfer | null,
   transferId: string,
@@ -149,20 +177,19 @@ export function composeRelayResponse(
   const authorized = authorizedPending(pending, sender);
   if (!authorized || authorized.transferId !== transferId) return { status: "none" };
 
-  const result = planContinuation(authorized.passport, authorized.currentRequest ?? currentRequest);
+  const result = planContinuation(authorized.passport, authorized.currentRequest ?? currentRequest, authorized.target);
   return result.status === "composed" ? { ...result, transferId } : result;
 }
 
-/** Shared by source estimates and destination composition; never writes to an editor. */
-export function planContinuation(
+function resolveContinuationFit(
   passport: Passport,
   currentRequest: string,
-): Omit<ComposedRelayResponse, "transferId"> | RelayErrorResponse {
-  const request = currentRequest;
-  if (!request.trim()) {
+  target?: Provider,
+): { prepared: PreparedTranscript; escapedRequest: string; bestCount: number; characterCount: number } | RelayErrorResponse {
+  if (!currentRequest.trim()) {
     return { status: "error", code: "empty-request", message: "Type your next question first." };
   }
-  if (request.length > RELAY_MAX_REQUEST_CHARS) {
+  if (currentRequest.length > RELAY_MAX_REQUEST_CHARS) {
     return {
       status: "error",
       code: "request-too-large",
@@ -170,27 +197,35 @@ export function planContinuation(
     };
   }
 
+  const prepared = prepareTranscript(passport.messages);
+  const escapedRequest = escapeStructuralTags(currentRequest);
   const total = passport.messages.length;
-  let low = 1;
-  let high = total - 1;
+  const lengthFor = (count: number): number => {
+    const frame = continuationFrame(passport, total - count, target);
+    return frame.prefix.length + prepared.suffixLengths[count]! + frame.suffixBeforeRequest.length
+      + escapedRequest.length + frame.suffixAfterRequest.length;
+  };
+
   let bestCount = 0;
-  let bestText = "";
+  let bestLength = 0;
 
-  const fullCandidate = buildContinuationPrompt(passport, total, request);
-  if (fullCandidate.length <= RELAY_MAX_DRAFT_CHARS) {
+  const fullLength = lengthFor(total);
+  if (fullLength <= RELAY_MAX_DRAFT_CHARS) {
     bestCount = total;
-    bestText = fullCandidate;
-  }
-
-  while (bestCount !== total && low <= high) {
-    const count = Math.floor((low + high) / 2);
-    const candidate = buildContinuationPrompt(passport, count, request);
-    if (candidate.length <= RELAY_MAX_DRAFT_CHARS) {
-      bestCount = count;
-      bestText = candidate;
-      low = count + 1;
-    } else {
-      high = count - 1;
+    bestLength = fullLength;
+  } else {
+    let low = 1;
+    let high = total - 1;
+    while (low <= high) {
+      const count = Math.floor((low + high) / 2);
+      const candidateLength = lengthFor(count);
+      if (candidateLength <= RELAY_MAX_DRAFT_CHARS) {
+        bestCount = count;
+        bestLength = candidateLength;
+        low = count + 1;
+      } else {
+        high = count - 1;
+      }
     }
   }
 
@@ -202,12 +237,45 @@ export function planContinuation(
     };
   }
 
+  return { prepared, escapedRequest, bestCount, characterCount: bestLength };
+}
+
+/** Fast O(log N) capacity estimate for live side-panel updates without allocating the full draft string. */
+export function estimateContinuation(
+  passport: Passport,
+  currentRequest: string,
+  target?: Provider,
+): ContinuationEstimate | RelayErrorResponse {
+  const fit = resolveContinuationFit(passport, currentRequest, target);
+  if ("status" in fit) return fit;
   return {
     status: "composed",
-    text: bestText,
-    includedMessageCount: bestCount,
-    omittedMessageCount: total - bestCount,
-    characterCount: bestText.length,
+    includedMessageCount: fit.bestCount,
+    omittedMessageCount: passport.messages.length - fit.bestCount,
+    characterCount: fit.characterCount,
+  };
+}
+
+/** Shared by source estimates and destination composition; never writes to an editor. */
+export function planContinuation(
+  passport: Passport,
+  currentRequest: string,
+  target?: Provider,
+): Omit<ComposedRelayResponse, "transferId"> | RelayErrorResponse {
+  const fit = resolveContinuationFit(passport, currentRequest, target);
+  if ("status" in fit) return fit;
+  const total = passport.messages.length;
+  const omitted = total - fit.bestCount;
+  const frame = continuationFrame(passport, omitted, target);
+  const transcript = fit.prepared.blocks.slice(total - fit.bestCount).join("\n\n");
+  const text = `${frame.prefix}${transcript}${frame.suffixBeforeRequest}${fit.escapedRequest}${frame.suffixAfterRequest}`;
+
+  return {
+    status: "composed",
+    text,
+    includedMessageCount: fit.bestCount,
+    omittedMessageCount: omitted,
+    characterCount: text.length,
   };
 }
 

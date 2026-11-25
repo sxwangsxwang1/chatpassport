@@ -121,6 +121,7 @@ function showRelayReady(relay: ReadyRelayResponse): void {
     strong { display: block; font: 700 16px/1.25 Georgia, serif; }
     p { margin: 8px 0 13px; color: #5f6862; }
     .feedback { padding: 8px 10px; border-radius: 7px; color: #8a302a; background: #f8e7e4; }
+    .feedback.success { color: #1a6345; background: #e4f3ea; }
     .actions { display: flex; flex-wrap: wrap; gap: 8px; }
     [hidden] { display: none !important; }
     .confirmation { margin-top: 12px; padding: 12px; background: #fff0cc; border-radius: 8px; }
@@ -136,6 +137,25 @@ function showRelayReady(relay: ReadyRelayResponse): void {
     button.primary { border-color: #164c3a; color: #fff; background: #164c3a; }
     button:hover:not(:disabled) { filter: brightness(0.94); }
     button:disabled { cursor: wait; opacity: 0.55; }
+    @media (prefers-color-scheme: dark) {
+      .card {
+        border-color: #323b36;
+        border-left-color: #2f966e;
+        color: #edf1ee;
+        background: #1b211e;
+        box-shadow: 0 14px 45px rgba(0, 0, 0, 0.48);
+      }
+      .card.error { border-left-color: #e06c60; }
+      .card.success { border-left-color: #2f966e; }
+      p { color: #a7b2ac; }
+      .feedback { color: #f6b6ae; background: #3b201e; }
+      .feedback.success { color: #9de0be; background: #183628; }
+      .confirmation { background: #3b2f16; color: #f6dfb0; }
+      .confirmation p { color: #f6dfb0; }
+      button { border-color: #414d47; color: #edf1ee; }
+      button.primary { border-color: #247355; color: #fff; background: #247355; }
+      button:hover:not(:disabled) { filter: brightness(1.12); }
+    }
   `;
 
   actions.append(continueButton, copyDraftButton, dismiss, recoveryButton);
@@ -167,6 +187,7 @@ async function copyPreparedDraft(
     }
     await navigator.clipboard.writeText(text);
     if (!isActive()) return;
+    elements.feedback.className = "feedback success";
     elements.feedback.hidden = false;
     elements.feedback.textContent = elements.preparedDraft === undefined
       ? "Draft copied. Paste it into the destination editor, review it, then click Send."
@@ -228,6 +249,7 @@ async function prepareContinuation(relay: ReadyRelayResponse, elements: RelayEle
   elements.recoveryButton.onclick = async () => {
     try {
       await navigator.clipboard.writeText(request);
+      elements.feedback.className = "feedback success";
       elements.feedback.hidden = false;
       elements.feedback.textContent = "Question copied. You can paste it back into the message box.";
     } catch {
@@ -364,6 +386,7 @@ async function finishComposerReplacement(
 function showError(elements: RelayElements, message: string): void {
   elements.card.className = "card error";
   elements.heading.textContent = "Needs your attention";
+  elements.feedback.className = "feedback";
   elements.feedback.textContent = message;
   elements.feedback.hidden = false;
 }

@@ -62,6 +62,7 @@ describe('prepared draft on arrival', () => {
     mocks.sendMessage.mockResolvedValue({ status: 'none' });
     copyButton.click();
     await vi.waitFor(() => expect(copy).toHaveBeenCalledWith('Context\n\nPrepared question'));
+    expect(host.shadowRoot!.querySelector('.feedback')?.className).toBe('feedback success');
     expect(mocks.sendMessage).toHaveBeenCalledTimes(4);
     dom.window.close();
   });
@@ -206,8 +207,10 @@ describe('omission approval and recovery', () => {
     await vi.waitFor(() => expect(transaction.dispose).toHaveBeenCalled());
     const recover = action(host, 'Copy original question');
     expect(recover.hidden).toBe(false);
+    expect(host.shadowRoot!.querySelector('.feedback')?.className).toBe('feedback');
     recover.click();
     await vi.waitFor(() => expect(copy).toHaveBeenCalledWith('My question'));
+    expect(host.shadowRoot!.querySelector('.feedback')?.className).toBe('feedback success');
     expect(mocks.sendMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: COMPLETE_PENDING_RELAY }));
     dom.window.close();
   });

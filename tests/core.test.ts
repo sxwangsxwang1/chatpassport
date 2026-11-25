@@ -62,6 +62,13 @@ describe("conversation rendering", () => {
     const prompt = buildHandoffPrompt({ ...passport, title: 'A "quoted" title' });
     expect(prompt).toContain('title="A &quot;quoted&quot; title"');
   });
+
+  it("uses accurate intro wording for same-platform vs cross-platform continuation", () => {
+    expect(buildHandoffPrompt(passport, undefined, "chatgpt")).toContain("I am continuing a previous conversation.");
+    expect(buildHandoffPrompt(passport, undefined, "claude")).toContain("I am continuing a conversation from another AI assistant.");
+    expect(buildContinuationPrompt(passport, 2, "Next step", "chatgpt")).toContain("I am continuing a previous conversation.");
+    expect(buildContinuationPrompt(passport, 2, "Next step", "claude")).toContain("I am continuing a conversation from another AI assistant.");
+  });
 });
 
 describe("transcript structure", () => {
